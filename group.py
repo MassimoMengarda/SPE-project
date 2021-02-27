@@ -8,9 +8,9 @@ class PandemicGroup:
         self.beta = beta
         self.gamma = gamma
         self.iota = iota
-        self.s = float(N - I) / float(N)
-        self.i = float(I) / float(N)
-        self.r = 0.0
+        self.s = float(N - I) / float(N) # Susceptible
+        self.i = float(I) / float(N) # Infectious
+        self.r = 0.0 # Recovered
 
     def iteration(self, time=1.0):
         delta_s = (- self.beta * self.s * self.i + self.iota * self.r) * time
