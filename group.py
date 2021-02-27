@@ -25,6 +25,7 @@ class PandemicGroup:
             'r': self.r
         }
     
+    @staticmethod
     def plot_advancement(group, t_limit):
         s_results = []
         i_results = []
@@ -40,6 +41,6 @@ class PandemicGroup:
         ax.plot(t_axis, s_results)
         ax.plot(t_axis, i_results)
         ax.plot(t_axis, r_results)
-        ax.set(xlabel='time (s)', ylabel='persons', title='Group pandemic')
+        ax.set(xlabel='time (s)', ylabel='persons (%)', title='Group pandemic')
         ax.grid()
         plt.show()
