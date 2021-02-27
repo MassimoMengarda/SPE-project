@@ -2,19 +2,20 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 class PandemicGroup:
-    def __init__(self, N, I, beta, gamma):
+    def __init__(self, N, I, beta, gamma, iota = 0.00):
         self.data = []
         self.N = N
         self.beta = beta
         self.gamma = gamma
+        self.iota = iota
         self.s = float(N - I) / float(N)
         self.i = float(I) / float(N)
         self.r = 0.0
 
-    def iteration(self):
-        delta_s = - self.beta * self.s * self.i
-        delta_i = self.beta * self.s * self.i - self.gamma * self.i
-        delta_r = self.gamma * self.i
+    def iteration(self, time=1.0):
+        delta_s = (- self.beta * self.s * self.i + self.iota * self.r) * time
+        delta_i = (self.beta * self.s * self.i - self.gamma * self.i) * time
+        delta_r = (self.gamma * self.i - self.iota * self.r) * time
         self.s += delta_s
         self.i += delta_i
         self.r += delta_r
