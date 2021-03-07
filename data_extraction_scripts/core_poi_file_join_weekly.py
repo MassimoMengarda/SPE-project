@@ -21,7 +21,11 @@ def main():
     # print(df.isna().sum())
 
     print("Filtering file")
-    merged = weekly.merge(core_df, left_on="safegraph_place_id", right_on="safegraph_place_id", how="left")
+    merged = weekly.merge(core_df, left_on="safegraph_place_id", right_on="safegraph_place_id", how="left", indicator=True)
+
+    print(merged.groupby('_merge').count())
+    print(merged[merged['_merge']=="left_only"])
+
 
     print("Writing csv file", output_filename)
     merged.to_csv(output_filename, index = False)
