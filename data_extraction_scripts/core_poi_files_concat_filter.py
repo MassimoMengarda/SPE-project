@@ -28,7 +28,7 @@ def main():
     final_df = pd.concat(dfs)
 
     print("Reading csv file", zip_codes_filepath)
-    zip_codes = pd.read_csv(path, converters={"zip_code": str})
+    zip_codes = pd.read_csv(zip_codes_filepath, converters={"zip_code": str})
 
     print("Filtering merge file")
     final_df["postal_code"] = final_df["postal_code"].apply(lambda x: x.zfill(5))

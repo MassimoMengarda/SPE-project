@@ -13,8 +13,7 @@ def main():
     print("Reading core csv file ", core_filename)
     core_df = pd.read_csv(core_filename)
 
-    core_df = core_df.drop(label=[])
-    
+    core_df = core_df.drop(columns=['placekey','location_name','safegraph_brand_ids','brands','street_address','city','region','postal_code','iso_country_code'])
 
     print("Reading csv file", weekly_filename)
     weekly = pd.read_csv(weekly_filename, converters={"postal_code": str})
@@ -22,7 +21,7 @@ def main():
     # print(df.isna().sum())
 
     print("Filtering file")
-    merged = weekly.merge(core_filename, left_on="safegraph_place_id", right_on="safegraph_place_id", how="left")
+    merged = weekly.merge(core_df, left_on="safegraph_place_id", right_on="safegraph_place_id", how="left")
 
     print("Writing csv file", output_filename)
     merged.to_csv(output_filename, index = False)
