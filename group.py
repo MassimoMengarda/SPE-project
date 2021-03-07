@@ -24,9 +24,9 @@ class PandemicGroup:
         self.r += delta_r
 
         return {
-            's': self.s,
-            'i': self.i,
-            'r': self.r
+            "s": self.s,
+            "i": self.i,
+            "r": self.r
         }
     
     @staticmethod
@@ -39,9 +39,9 @@ class PandemicGroup:
         # Run the simulation for t_limit iterations
         for t in range(t_limit):
             result = group.iteration()
-            s_results.append(result['s'])
-            i_results.append(result['i'])
-            r_results.append(result['r'])
+            s_results.append(result["s"])
+            i_results.append(result["i"])
+            r_results.append(result["r"])
             t_axis.append(t)
 
         # Build the chart
@@ -49,6 +49,6 @@ class PandemicGroup:
         ax.plot(t_axis, s_results)
         ax.plot(t_axis, i_results)
         ax.plot(t_axis, r_results)
-        ax.set(xlabel='time (s)', ylabel='persons (%)', title='Group pandemic')
+        ax.set(xlabel="time (s)", ylabel="persons (%)", title="Group pandemic")
         ax.grid()
         plt.show()
