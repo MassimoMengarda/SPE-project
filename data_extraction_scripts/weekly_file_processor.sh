@@ -1,16 +1,16 @@
 #!/bin/bash
 
-
 function print_usage {
-    printf "\n<PATH>/file_processor.sh\n"
+    printf "\n<PATH>/data_extraction_scripts/file_processor.sh\n"
     printf "\t--download\t\t\tDownload the weekly datasets from aws\n"
     printf "\t--extract\t\tExtract the files from the gz\n"
+    printf "\t--process\t\tProcess the extracted csv files\n"
     printf "\t--help\t\t\tPrint this list\n\n"
 }
 
 function download_files() {
     printf "Downloading files\n"
-    mkdir "raw"
+    mkdir "data/raw"
     files=(
     "2019-01-07-weekly-patterns.csv.gz"
     "2019-02-04-weekly-patterns.csv.gz"
@@ -26,7 +26,7 @@ function download_files() {
     "2019-12-02-weekly-patterns.csv.gz"
     )
     for filename in "${files[@]}" ; do
-        cmd="aws s3 cp s3://sg-c19-response/weekly-patterns/v2/main-file/$filename ./raw/ --profile safegraphws --endpoint https://s3.wasabisys.com"
+        cmd="aws s3 cp s3://sg-c19-response/weekly-patterns/v2/main-file/$filename .data/raw/ --profile safegraphws --endpoint https://s3.wasabisys.com"
         eval "$cmd"
     done
     printf "Done\n\n";
@@ -34,11 +34,11 @@ function download_files() {
 
 function extract_files() {
     printf "Extracting files\n"
-    mkdir "extracted"
-    files=($(ls raw/*.csv.gz | xargs -n 1 basename))
+    mkdir "data/extracted"
+    files=($(ls data/raw/*.csv.gz | xargs -n 1 basename))
     for filename in "${files[@]}" ; do
         printf "Extracting $filename\n"
-        gzip -dk "raw/$filename"
+        gzip -dk "data/raw/$filename"
     done
     mv raw/*.csv extracted 
     printf "Done\n\n";
@@ -46,11 +46,11 @@ function extract_files() {
 
 function process_files() {
     printf "Processing files\n"
-    mkdir "processed"
-    files=($(ls extracted/*.csv | xargs -n 1 basename))
+    mkdir "data/processed"
+    files=($(ls data/extracted/*.csv | xargs -n 1 basename))
     for filename in "${files[@]}" ; do
         printf "Processing $filename\n"
-        python3 processor.py "extracted/$filename" "processed/$filename"
+        python3 data_extraction_scripts_processor.py "data/extracted/$filename" "data/processed/$filename" "data/additional_data/ny_metro_area_zip_codes.csv"
     done
     printf "Done\n\n";
 }
@@ -80,6 +80,8 @@ while [[ $# -gt 0 ]] ; do
     shift
 done
 
+mkdir "data"
+
 if [ "$download" == "1" ] ; then
     download_files
 fi
@@ -91,4 +93,3 @@ fi
 if [ "$process" == "1" ] ; then
     process_files
 fi
-
