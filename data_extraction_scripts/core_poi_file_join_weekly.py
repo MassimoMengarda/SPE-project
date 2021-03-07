@@ -4,13 +4,13 @@ import pandas as pd
 
 def main():
     if len(sys.argv) < 3:
-        sys.exit("Usage: PATH/python3 core_file_join.py <core filename> <weekly filename> <output filename>")
+        sys.exit("Usage: PATH/python3 core_file_join.py <core poi filename> <weekly filename> <output filename>")
     
     core_filename = sys.argv[1]
     weekly_filename = sys.argv[2]
     output_filename = sys.argv[3]
 
-    print("Reading core csv file ", core_filename)
+    print("Reading core csv file", core_filename)
     core_df = pd.read_csv(core_filename)
 
     core_df = core_df.drop(columns=['placekey','location_name','safegraph_brand_ids','brands','street_address','city','region','postal_code','iso_country_code'])
