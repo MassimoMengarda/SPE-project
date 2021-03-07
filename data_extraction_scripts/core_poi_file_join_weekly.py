@@ -11,7 +11,9 @@ def main():
     output_filename = sys.argv[3]
 
     print("Reading core csv file ", core_filename)
-    core_filename = pd.read_csv(core_filename)
+    core_df = pd.read_csv(core_filename)
+
+    core_df = core_df.drop(label=[])
     
 
     print("Reading csv file", weekly_filename)
