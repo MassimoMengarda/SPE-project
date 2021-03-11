@@ -10,8 +10,8 @@ function print_usage {
 
 function download_weekly_files() {
     printf "Downloading weekly files\n"
-    mkdir "data/raw"
-    mkdir "data/raw/weekly"
+    dir="data/raw/weekly"
+    mkdir -p "$dir"
     files=(
     "2019-01-07-weekly-patterns.csv.gz"
     "2019-02-04-weekly-patterns.csv.gz"
@@ -27,7 +27,7 @@ function download_weekly_files() {
     "2019-12-02-weekly-patterns.csv.gz"
     )
     for filename in "${files[@]}" ; do
-        cmd="aws s3 cp s3://sg-c19-response/weekly-patterns/v2/main-file/$filename data/raw/weekly/ --profile safegraphws --endpoint https://s3.wasabisys.com"
+        cmd="aws s3 cp s3://sg-c19-response/weekly-patterns/v2/main-file/$filename $dir/ --profile safegraphws --endpoint https://s3.wasabisys.com"
         eval "$cmd"
     done
     printf "Done\n\n";
@@ -35,8 +35,8 @@ function download_weekly_files() {
 
 function download_core_poi_files() {
     printf "Downloading core poi files\n"
-    mkdir "data/raw"
-    mkdir "data/raw/core_poi"
+    dir="data/raw/core_poi"
+    mkdir -p "$dir"
     files=(
     "core_poi-part1.csv.gz"
     "core_poi-part2.csv.gz"
@@ -45,58 +45,130 @@ function download_core_poi_files() {
     "core_poi-part5.csv.gz"
     )
     for filename in "${files[@]}" ; do
-        cmd="aws s3 cp s3://sg-c19-response/core-places-delivery/core_poi/2020/11/06/12/$filename data/raw/core_poi/ --profile safegraphws --endpoint https://s3.wasabisys.com"
+        cmd="aws s3 cp s3://sg-c19-response/core-places-delivery/core_poi/2020/11/06/12/$filename $dir/ --profile safegraphws --endpoint https://s3.wasabisys.com"
         eval "$cmd"
+    done
+    printf "Done\n\n";
+}
+
+function download_home_summary_files() {
+    printf "Downloading home summary files\n"
+    dir="data/processed/home_summary"
+    mkdir -p "$dir"
+    files=(
+    "2019-01-07-home-panel-summary.csv"
+    "2019-02-04-home-panel-summary.csv"
+    "2019-03-04-home-panel-summary.csv"
+    "2019-04-01-home-panel-summary.csv"
+    "2019-05-06-home-panel-summary.csv"
+    "2019-06-03-home-panel-summary.csv"
+    "2019-07-01-home-panel-summary.csv"
+    "2019-08-05-home-panel-summary.csv"
+    "2019-09-02-home-panel-summary.csv"
+    "2019-10-07-home-panel-summary.csv"
+    "2019-11-04-home-panel-summary.csv"
+    "2019-12-02-home-panel-summary.csv"
+    )
+    for filename in "${files[@]}" ; do
+        cmd="aws s3 cp s3://sg-c19-response/weekly-patterns/v2/home-summary-file/$filename $dir/ --profile safegraphws --endpoint https://s3.wasabisys.com"
+        eval "$cmd"
+    done
+    printf "Done\n\n";
+}
+
+function download_social_distancing_files() {
+    printf "Downloading social distancing files\n"
+    dir="data/raw/social_distancing"
+    mkdir -p "$dir"
+    file="social-distancing.csv.gz"
+    dates=(
+    "2019-01-07"
+    "2019-02-04"
+    "2019-03-04"
+    "2019-04-01"
+    "2019-05-06"
+    "2019-06-03"
+    "2019-07-01"
+    "2019-08-05"
+    "2019-09-02"
+    "2019-10-07"
+    "2019-11-04"
+    "2019-12-02"
+    )
+    for date in "${dates[@]}" ; do
+        for i in {0..6} ; do
+            dirdate=$(date +%Y/%m/%d -d "$date +$i days")
+            filedate=$(date +%Y-%m-%d -d "$date +$i days")
+            filename="$filedate-$file"
+            cmd="aws s3 cp s3://sg-c19-response/social-distancing/v2/$dirdate/$filename $dir/ --profile safegraphws --endpoint https://s3.wasabisys.com"
+            eval "$cmd"
+        done
     done
     printf "Done\n\n";
 }
 
 function extract_weekly_files() {
     printf "Extracting weekly files\n"
-    mkdir "data/extracted"
-    mkdir "data/extracted/weekly"
-    files=($(ls data/raw/weekly/*.csv.gz | xargs -n 1 basename))
+    from="data/raw/weekly"
+    to="data/extracted/weekly"
+    mkdir -p "$to"
+    files=($(ls $from/*.csv.gz | xargs -n 1 basename))
     for filename in "${files[@]}" ; do
         printf "Extracting $filename\n"
-        gzip -dk "data/raw/weekly/$filename"
+        gzip -dk "$from/$filename"
     done
-    mv data/raw/weekly/*.csv data/extracted/weekly
+    mv $from/*.csv $to
     printf "Done\n\n";
 }
 
 function extract_core_poi_files() {
     printf "Extracting core poi files\n"
-    mkdir "data/extracted"
-    mkdir "data/extracted/core_poi"
-    files=($(ls data/raw/core_poi/*.csv.gz | xargs -n 1 basename))
+    from="data/raw/core_poi"
+    to="data/extracted/core_poi"
+    mkdir -p "$to"
+    files=($(ls $from/*.csv.gz | xargs -n 1 basename))
     for filename in "${files[@]}" ; do
         printf "Extracting $filename\n"
-        gzip -dk "data/raw/core_poi/$filename"
+        gzip -dk "$from/$filename"
     done
-    mv data/raw/core_poi/*.csv data/extracted/core_poi
+    mv $from/*.csv $to
+    printf "Done\n\n";
+}
+
+function extract_social_distancing_files() {
+    printf "Extracting social distancing files\n"
+    from="data/raw/social_distancing"
+    to="data/extracted/social_distancing"
+    mkdir -p "$to"
+    files=($(ls $from/*.csv.gz | xargs -n 1 basename))
+    for filename in "${files[@]}" ; do
+        printf "Extracting $filename\n"
+        gzip -dk "$from/$filename"
+    done
+    mv $from/*.csv $to
     printf "Done\n\n";
 }
 
 function process_core_poi_files() {
     printf "Processing core poi files\n"
-    mkdir "data/processed"
-    mkdir "data/processed/core_poi"
+    dir="data/processed/core_poi"
+    mkdir -p "$dir"
 
-    python3 data_extraction_scripts/core_poi_files_concat_filter.py "data/extracted/core_poi" "data/additional_data/ny_metro_area_zip_codes.csv" "data/processed/core_poi/core_poi.csv" 
+    python3 data_extraction_scripts/core_poi_files_concat_filter.py "data/extracted/core_poi" "data/additional_data/ny_metro_area_zip_codes.csv" "$dir/core_poi.csv" 
 
     printf "Done\n\n";
 }
 
 function process_weekly_files() {
     printf "Processing weekly files\n"
-    mkdir "data/processed"
-    mkdir "data/processed/weekly"
+    dir="data/processed/weekly"
+    mkdir -p "$dir"
 
     files=($(ls data/extracted/weekly/*.csv | xargs -n 1 basename))
     for filename in "${files[@]}" ; do
         printf "Processing $filename\n"
-        #python3 data_extraction_scripts/weekly_file_filter.py "data/extracted/weekly/$filename" "data/additional_data/ny_metro_area_zip_codes_no_duplicate.csv" "data/processed/weekly/$filename"
-        python3 data_extraction_scripts/core_poi_file_join_weekly.py "data/processed/core_poi/core_poi.csv" "data/processed/weekly/$filename" "data/processed/weekly/$filename"
+        python3 data_extraction_scripts/weekly_file_filter.py "data/extracted/weekly/$filename" "data/additional_data/ny_metro_area_zip_codes_no_duplicate.csv" "$dir/$filename"
+        python3 data_extraction_scripts/core_poi_file_join_weekly.py "data/processed/core_poi/core_poi.csv" "$dir/$filename" "$dir/$filename"
     done
     printf "Done\n\n";
 }
@@ -109,13 +181,13 @@ fi
 while [[ $# -gt 0 ]] ; do
     key="$1"
     case "$key" in
-        "--download")
+        "--download"|"-d")
             download=1
             ;;
-        "--extract")
+        "--extract"|"-e")
             extract=1
             ;;
-        "--process")
+        "--process"|"-p")
             process=1
             ;;
         "--help"|*)
@@ -126,39 +198,52 @@ while [[ $# -gt 0 ]] ; do
     shift
 done
 
-mkdir "data"
-
 if [ "$download" == "1" ] ; then
-    read -p "Download weekly files? [y|n]" answer
+    read -rp "Download weekly files? [y|n]" answer
     if [ "$answer" == "y" ] ; then
         download_weekly_files
     fi
 
-    read -p "Download core poi files? [y|n]" answer
+    read -rp "Download core poi files? [y|n]" answer
     if [ "$answer" == "y" ] ; then
         download_core_poi_files
+    fi
+
+    read -rp "Download home summary files? [y|n]" answer
+    if [ "$answer" == "y" ] ; then
+        download_home_summary_files
+    fi
+
+    read -rp "Download social distancing files? [y|n]" answer
+    if [ "$answer" == "y" ] ; then
+        download_social_distancing_files
     fi
 fi
 
 if [ "$extract" == "1" ] ; then
-    read -p "Extract weekly files? [y|n]" answer
+    read -rp "Extract weekly files? [y|n]" answer
     if [ "$answer" == "y" ] ; then
         extract_weekly_files
     fi
         
-    read -p "Extract core poi files? [y|n]" answer
+    read -rp "Extract core poi files? [y|n]" answer
     if [ "$answer" == "y" ] ; then
         extract_core_poi_files
+    fi
+        
+    read -rp "Extract social distancing files? [y|n]" answer
+    if [ "$answer" == "y" ] ; then
+        extract_social_distancing_files
     fi
 fi
 
 if [ "$process" == "1" ] ; then
-    read -p "Process core poi files? [y|n]" answer
+    read -rp "Process core poi files? [y|n]" answer
     if [ "$answer" == "y" ] ; then
         process_core_poi_files
     fi
 
-    read -p "Process weekly files? [y|n]" answer
+    read -rp "Process weekly files? [y|n]" answer
     if [ "$answer" == "y" ] ; then
         process_weekly_files
     fi
