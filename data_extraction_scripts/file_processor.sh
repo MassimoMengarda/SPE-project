@@ -53,7 +53,7 @@ function download_core_poi_files() {
 
 function download_home_summary_files() {
     printf "Downloading home summary files\n"
-    dir="data/processed/home_summary"
+    dir="data/extracted/home_summary"
     mkdir -p "$dir"
     files=(
     "2019-01-07-home-panel-summary.csv"
@@ -151,25 +151,52 @@ function extract_social_distancing_files() {
 
 function process_core_poi_files() {
     printf "Processing core poi files\n"
-    dir="data/processed/core_poi"
-    mkdir -p "$dir"
-
-    python3 data_extraction_scripts/core_poi_files_concat_filter.py "data/extracted/core_poi" "data/additional_data/ny_metro_area_zip_codes.csv" "$dir/core_poi.csv" 
-
+    from="data/extracted/core_poi"
+    to="data/processed/core_poi"
+    mkdir -p "$to"
+    python3 data_extraction_scripts/core_poi_files_concat_filter.py "$from" "data/additional_data/ny_metro_area_zip_codes.csv" "$to/core_poi.csv" 
     printf "Done\n\n";
 }
 
 function process_weekly_files() {
     printf "Processing weekly files\n"
-    dir="data/processed/weekly"
-    mkdir -p "$dir"
+    from="data/extracted/weekly"
+    to="data/processed/weekly"
+    mkdir -p "$to"
 
-    files=($(ls data/extracted/weekly/*.csv | xargs -n 1 basename))
+    files=($(ls $from/*.csv | xargs -n 1 basename))
     for filename in "${files[@]}" ; do
         printf "Processing $filename\n"
-        python3 data_extraction_scripts/weekly_file_filter.py "data/extracted/weekly/$filename" "data/additional_data/ny_metro_area_zip_codes_no_duplicate.csv" "$dir/$filename"
-        python3 data_extraction_scripts/core_poi_file_join_weekly.py "data/processed/core_poi/core_poi.csv" "$dir/$filename" "$dir/$filename"
+        python3 data_extraction_scripts/weekly_file_filter.py "$from/$filename" "data/additional_data/ny_metro_area_zip_codes_no_duplicate.csv" "$to/$filename"
+        python3 data_extraction_scripts/core_poi_file_join_weekly.py "data/processed/core_poi/core_poi.csv" "$to/$filename" "$to/$filename"
     done
+    printf "Done\n\n";
+}
+
+function process_home_summary_files() {
+    printf "Processing home summary files\n"
+    from="data/extracted/home_summary"
+    to="data/processed/home_summary"
+    mkdir -p "$to"
+    python3 data_extraction_scripts/home_summary_filter.py "$from" "data/additional_data/zip_cbg_join_filtered.csv" "$to" 
+    printf "Done\n\n";
+}
+
+function process_social_distancing_files() {
+    printf "Processing social distancing files\n"
+    from="data/extracted/social_distancing"
+    to="data/processed/social_distancing"
+    mkdir -p "$to"
+    python3 data_extraction_scripts/social_distancing_filter.py "$from" "data/additional_data/zip_cbg_join_filtered.csv" "$to" 
+    printf "Done\n\n";
+}
+
+function process_population_files() {
+    printf "Processing population files\n"
+    from="data/additional_data/safegraph_open_census_data"
+    to="data/processed/population"
+    mkdir -p "$to"
+    python3 data_extraction_scripts/population_filter.py "$from" "data/additional_data/zip_cbg_join_filtered.csv" "$to" 
     printf "Done\n\n";
 }
 
@@ -246,5 +273,20 @@ if [ "$process" == "1" ] ; then
     read -rp "Process weekly files? [y|n]" answer
     if [ "$answer" == "y" ] ; then
         process_weekly_files
+    fi
+
+    read -rp "Process social distancing files? [y|n]" answer
+    if [ "$answer" == "y" ] ; then
+        process_social_distancing_files
+    fi
+
+    read -rp "Process home summary files? [y|n]" answer
+    if [ "$answer" == "y" ] ; then
+        process_home_summary_files
+    fi
+
+    read -rp "Process population files? [y|n]" answer
+    if [ "$answer" == "y" ] ; then
+        process_population_files
     fi
 fi
