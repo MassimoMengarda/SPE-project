@@ -23,8 +23,8 @@ def main():
     zcta = shapefile.Reader(zcta_input_file)
     zcta_records = zcta.records()
 
-    # print(zcta.fields)
-    # print(zcta_records[0])
+    print(zcta.fields)
+    print(zcta_records[0])
 
     zip_bind = []
     cbg_bind = []
@@ -48,12 +48,12 @@ def main():
 
     for state_directory in state_cbg_files:
         dirpath = os.path.join(dir_data, "state_cbgs", state_directory)
-        # print(dirpath)
+        print(dirpath)
         assert(os.path.isdir(dirpath) == True)
         cbg_sf = shapefile.Reader(os.path.join(dirpath, state_directory))
         cbg_sf_records = cbg_sf.records()
-        # print(cbg_sf.fields)
-        # print(cbg_sf_records[0])
+        print(cbg_sf.fields)
+        print(cbg_sf_records[0])
         cbg_sf_shapes = cbg_sf.shapes()
         total_length = len(cbg_sf_shapes)
         
@@ -63,7 +63,7 @@ def main():
             cbg_code = cbg_sf_records[i][4]
             for pos in zcta_idx.intersection(cbg_polygon.boundingBox()):
                 if cbg_polygon.overlaps(zcta_polygons[pos]):
-                    zip_code = zcta_records[j][0]
+                    zip_code = zcta_records[pos][0]
                     zip_bind.append(zip_code)
                     cbg_bind.append(cbg_code)
             bar.next()
@@ -71,7 +71,8 @@ def main():
     # print(zip_bind)
     # print(cbg_bind)
     out_df = pd.DataFrame(data={'zip':zip_bind,'cbg':cbg_bind})
-    out_df.to_csv(output_filepath)
+    out_df.drop_duplicates(inplace=True)
+    out_df.to_csv(output_filepath, index=False)
 
 if __name__ == "__main__":
     main()
