@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function print_usage {
-    printf "\n<PATH>/data_extraction_scripts/file_processor.sh\n"
+    printf "\n<PATH>/data_extraction_and_preprocessing/file_processor.sh\n"
     printf "\t--download\t\t\tDownload the weekly datasets from aws\n"
     printf "\t--extract\t\tExtract the files from the gz\n"
     printf "\t--process\t\tProcess the extracted csv files\n"
@@ -154,7 +154,7 @@ function process_core_poi_files() {
     from="data/extracted/core_poi"
     to="data/processed/core_poi"
     mkdir -p "$to"
-    python3 data_extraction_scripts/core_poi_files_concat_filter.py "$from" "data/additional_data/ny_metro_area_zip_codes.csv" "$to/core_poi.csv" 
+    python3 data_extraction_and_preprocessing/core_poi_files_concat_filter.py "$from" "data/additional_data/ny_metro_area_zip_codes.csv" "$to/core_poi.csv" 
     printf "Done\n\n";
 }
 
@@ -167,8 +167,8 @@ function process_weekly_files() {
     files=($(ls $from/*.csv | xargs -n 1 basename))
     for filename in "${files[@]}" ; do
         printf "Processing $filename\n"
-        python3 data_extraction_scripts/weekly_file_filter.py "$from/$filename" "data/additional_data/ny_metro_area_zip_codes_no_duplicate.csv" "$to/$filename"
-        python3 data_extraction_scripts/core_poi_file_join_weekly.py "data/processed/core_poi/core_poi.csv" "$to/$filename" "$to/$filename"
+        python3 data_extraction_and_preprocessing/weekly_file_filter.py "$from/$filename" "data/additional_data/ny_metro_area_zip_codes_no_duplicate.csv" "$to/$filename"
+        python3 data_extraction_and_preprocessing/core_poi_file_join_weekly.py "data/processed/core_poi/core_poi.csv" "$to/$filename" "$to/$filename"
     done
     printf "Done\n\n";
 }
@@ -178,7 +178,7 @@ function process_home_summary_files() {
     from="data/extracted/home_summary"
     to="data/processed/home_summary"
     mkdir -p "$to"
-    python3 data_extraction_scripts/home_summary_filter.py "$from" "data/additional_data/zip_cbg_join_filtered.csv" "$to" 
+    python3 data_extraction_and_preprocessing/home_summary_filter.py "$from" "data/additional_data/zip_cbg_join_filtered.csv" "$to" 
     printf "Done\n\n";
 }
 
@@ -187,7 +187,7 @@ function process_social_distancing_files() {
     from="data/extracted/social_distancing"
     to="data/processed/social_distancing"
     mkdir -p "$to"
-    python3 data_extraction_scripts/social_distancing_filter.py "$from" "data/additional_data/zip_cbg_join_filtered.csv" "$to" 
+    python3 data_extraction_and_preprocessing/social_distancing_filter.py "$from" "data/additional_data/zip_cbg_join_filtered.csv" "$to" 
     printf "Done\n\n";
 }
 
@@ -196,7 +196,7 @@ function process_population_files() {
     from="data/additional_data/safegraph_open_census_data"
     to="data/processed/population"
     mkdir -p "$to"
-    python3 data_extraction_scripts/population_filter.py "$from" "data/additional_data/zip_cbg_join_filtered.csv" "$to" 
+    python3 data_extraction_and_preprocessing/population_filter.py "$from" "data/additional_data/zip_cbg_join_filtered.csv" "$to" 
     printf "Done\n\n";
 }
 
