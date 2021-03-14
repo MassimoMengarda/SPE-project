@@ -12,7 +12,7 @@ def main():
     parser.add_argument("output_filepath", type=str, help="the file where store the index")
     args = parser.parse_args()
     input_dir = args.input_directory
-    output_file = args.output_file
+    output_filepath = args.output_filepath
 
     if not os.path.isdir(input_dir):
         print("Input directory is not a directory")
@@ -38,7 +38,7 @@ def main():
 
     result_poi_mapping = pd.DataFrame(data={'matrix_idx':matrix_positions,'poi_idx': pois_idx})
 
-    result_poi_mapping.to_csv(output_filename)
+    result_poi_mapping.to_csv(output_filepath)
 
         # row => POI (315'000)
         # column => CBG (12'000)

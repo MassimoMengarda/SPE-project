@@ -1,9 +1,10 @@
-import os
-import pandas as pd
-import json
-import numpy as np
 import argparse
+import json
+import os
 import sys
+
+import numpy as np
+import pandas as pd
 import scipy
 
 def JSONParser(data):
@@ -47,20 +48,14 @@ def main():
             poi_idx.extend([idx for i in len(poi["visitor_home_cbgs"])])
             cbgs.extend(poi["visitor_home_cbgs"].keys())
         
-
-        
-
-
         print(df)
-
-        # row => POI (315'000)
-        # column => CBG (12'000)
-        # Around => 3'780'000'000 entries
-        # Consequently => sparse matrix SciPy
-        # Entry => 4 byte
-        # Total => ~16GB
-        
-
 
 if __name__ == "__main__":
     main()
+
+# row => POI (315'000)
+# column => CBG (12'000)
+# Around => 3'780'000'000 entries
+# Consequently => sparse matrix SciPy
+# Entry => 4 byte
+# Total => ~16GB
