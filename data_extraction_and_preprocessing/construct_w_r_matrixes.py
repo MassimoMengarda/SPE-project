@@ -68,41 +68,14 @@ def main():
         
         print("Computing POI indexes")
 
-        weights_df = pd.DataFrame(data={'data': data, 'poi': pois, 'cbg': cbgs})
+        weights_df = pd.DataFrame(data={"data": data, "poi": pois, "cbg": cbgs})
         result_poi_merge = pd.merge(weights_df, poi_idx_file, on="poi")
 
         print("Computing CBG indexes")
         result_merge = pd.merge(result_poi_merge, cbg_idx_file, on="cbg")
-        
-        # print(result_merge)
 
-        
-        # poi_idxs = pois_series.apply(lambda poi: poi_idx_file['matrix_idx'][poi_idx_file['poi'] == poi].values[0])
-        
-        # poi_idxs = []
-        # for poi in pois:
-        #     poi_idxs.append(poi_idx_file.loc[poi_idx_file["poi"] == poi].iloc[0]["matrix_idx"])
-        # print(poi_idxs)
-
-        # print("Computing CBG indexes")
-# 
-        # cbg_idxs = []
-        # for cbg in cbgs:
-        #     cbg_idxs.append(cbg_idx_file.loc[cbg_idx_file["cbg"] == cbg].iloc[0]["matrix_idx"])
-        
-        # print("Creating sparse matrix")
-
-        coo_init_value = (result_merge['data'], (result_merge['poi_matrix_idx'], result_merge['cbg_matrix_idx']))
-        coo_shape = (poi_idx_file['poi_matrix_idx'].max() + 1, cbg_idx_file['cbg_matrix_idx'].max() + 1)
-        
-        # print((result_merge['poi_matrix_idx'] >= coo_shape[0]).sum())
-        # print((result_merge['poi_matrix_idx'] > coo_shape[0]).sum())
-        # print(result_merge['poi_matrix_idx'].isnull().sum())
-        # print((result_merge['cbg_matrix_idx'] >= coo_shape[1]).sum())
-        # print((result_merge['cbg_matrix_idx'] > coo_shape[1]).sum())
-        # print(result_merge['cbg_matrix_idx'].isnull().sum())
-# 
-        # print(coo_shape)
+        coo_init_value = (result_merge["data"], (result_merge["poi_matrix_idx"], result_merge["cbg_matrix_idx"]))
+        coo_shape = (poi_idx_file["poi_matrix_idx"].max() + 1, cbg_idx_file["cbg_matrix_idx"].max() + 1)
         
         w_r_sparse_matrix = coo_matrix(coo_init_value, shape=coo_shape)
         output_filepath = os.path.join(output_dir, (os.path.splitext(filename)[0] + ".npz"))
@@ -113,10 +86,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# row => POI (315'000)
-# column => CBG (12'000)
-# Around => 3'780'000'000 entries
-# Consequently => sparse matrix SciPy
-# Entry => 4 byte
-# Total => ~16GB
