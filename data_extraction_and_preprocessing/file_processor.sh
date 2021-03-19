@@ -163,13 +163,7 @@ function process_weekly_files() {
     from="data/extracted/weekly"
     to="data/processed/weekly"
     mkdir -p "$to"
-
-    files=($(ls $from/*.csv | xargs -n 1 basename))
-    for filename in "${files[@]}" ; do
-        printf "Processing $filename\n"
-        python3 data_extraction_and_preprocessing/weekly_file_filter.py "$from/$filename" "data/additional_data/ny_metro_area_zip_codes_no_duplicate.csv" "$to/$filename"
-        python3 data_extraction_and_preprocessing/core_poi_file_join_weekly.py "data/processed/core_poi/core_poi.csv" "$to/$filename" "$to/$filename"
-    done
+    python3 data_extraction_and_preprocessing/weekly_file_filter.py "$from" "data/additional_data/ny_metro_area_zip_codes.csv" "$to"
     printf "Done\n\n";
 }
 

@@ -1,26 +1,29 @@
+import argparse
 import sys
 import os
 
 import pandas as pd
 
 def main():
-    if len(sys.argv) < 3:
-        sys.exit("Usage: PATH/python3 social_distancing_filter.py <input directory> <zip cbg join filename> <output directory>")
-    
-    input_directory = sys.argv[1]
-    zip_cbg_filename = sys.argv[2]
-    output_directory = sys.argv[3]
+    parser = argparse.ArgumentParser(description="Filter all social distancing by zip codes")
+    parser.add_argument("input_directory", type=str, help="the directory where the social distancing files are stored")
+    parser.add_argument("zip_cbg_filename", type=str, help="the path to where zip cbg file is stored")
+    parser.add_argument("output_directory", type=str, help="the directory where to save the results")
+    args = parser.parse_args()
+    input_dir = args.input_directory
+    zip_cbg_filename = args.zip_cbg_filename
+    output_directory = args.output_directory
 
-    if not os.path.isdir(input_directory):
-        sys.exit(f"Error: {input_directory} is not a valid directory")
+    if not os.path.isdir(input_dir):
+        sys.exit(f"Error: {input_dir} is not a valid directory")
 
     if not os.path.isdir(output_directory):
         sys.exit(f"Error: {output_directory} is not a valid directory")
     
-    paths = [(filename, os.path.join(input_directory, filename)) for filename in os.listdir(input_directory) if filename.endswith(".csv")]
+    paths = [(filename, os.path.join(input_dir, filename)) for filename in os.listdir(input_dir) if filename.endswith(".csv")]
 
     if len(paths) == 0:
-        sys.exit(f"Error: no csv file were find in directory {input_directory}")
+        sys.exit(f"Error: no csv file were find in directory {input_dir}")
     
     print("Reading csv file", zip_cbg_filename)
     zip_code_cbg_map = pd.read_csv(zip_cbg_filename, converters={"zip_code": str, "cbg": str})

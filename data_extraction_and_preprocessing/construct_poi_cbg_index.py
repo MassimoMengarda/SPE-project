@@ -1,16 +1,14 @@
 import argparse
-import json
 import os
 import sys
 
 import numpy as np
 import pandas as pd
 
-def JSONParser(data):
-    return json.loads(data)
+from utils import get_dates_from_input_dir, JSONParser
 
 def main():
-    parser = argparse.ArgumentParser(description="Construct the w(r) matrixes, one for each week considered")
+    parser = argparse.ArgumentParser(description="Construct the poi cbg index matrixes")
     parser.add_argument("input_directory", type=str, help="the directory where the weekly patterns are stored")
     parser.add_argument("output_directory", type=str, help="the directory where store the index result")
     args = parser.parse_args()
@@ -18,28 +16,26 @@ def main():
     output_directory = args.output_directory
 
     if not os.path.isdir(input_dir):
-        print("Input directory is not a directory")
-        sys.exit(1)
+        sys.exit("Input directory is not a directory")
     
-    pattern_files = [os.path.join(input_dir, path) for path in os.listdir(input_dir) if path.endswith(".csv")]
+    pattern_files = get_dates_from_input_dir(input_dir)
 
     if len(pattern_files) == 0:
-        print("Given input directory do not contain any CSV file") 
-        sys.exit(1)
+        sys.exit("Given input directory do not contain any CSV file")
 
     os.makedirs(output_directory, exist_ok=True)
 
-    safe_graph_place_ids_not_set = True
+    is_safe_graph_place_ids_set = False
     cbgs = []
     for pattern_file in pattern_files:
         print("Reading CSV file", pattern_file)
         df = pd.read_csv(pattern_file, converters={"visitor_home_cbgs": JSONParser})
         
-        if safe_graph_place_ids_not_set:
-            safe_graph_place_ids = df["safegraph_place_id"]
-            safe_graph_place_ids_not_set = False
-        else:
+        if is_safe_graph_place_ids_set:
             safe_graph_place_ids.append(df["safegraph_place_id"])
+        else:
+            safe_graph_place_ids = df["safegraph_place_id"]
+            is_safe_graph_place_ids_set = True
         
         for i, row in df.iterrows():
             cbgs.extend(row["visitor_home_cbgs"].keys())
@@ -47,12 +43,18 @@ def main():
     pois_idx = pd.unique(safe_graph_place_ids)
     matrix_positions = np.arange(0, len(pois_idx))
     result_poi_mapping = pd.DataFrame(data={"matrix_idx": matrix_positions, "poi": pois_idx})
-    result_poi_mapping.to_csv(os.path.join(output_directory, "poi_indexes.csv"), index=False)
+
+    output_filepath = os.path.join(output_directory, "poi_indexes.csv")
+    print("Writing csv file", output_filepath)
+    result_poi_mapping.to_csv(output_filepath, index=False)
 
     unique_cbgs = pd.unique(cbgs)
     matrix_positions = np.arange(0, len(unique_cbgs))
     result_cbg_mapping = pd.DataFrame(data={"matrix_idx": matrix_positions, "cbg": unique_cbgs})
-    result_cbg_mapping.to_csv(os.path.join(output_directory, "cbg_indexes.csv"), index=False)
+
+    output_filepath = os.path.join(output_directory, "cbg_indexes.csv")
+    print("Writing csv file", output_filepath)
+    result_cbg_mapping.to_csv(output_filepath, index=False)
 
 if __name__ == "__main__":
     main()

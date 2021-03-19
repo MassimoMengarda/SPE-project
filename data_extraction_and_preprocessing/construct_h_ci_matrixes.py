@@ -1,15 +1,12 @@
 import argparse
-import json
 import os
 import sys
+from datetime import datetime, timedelta
 
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta
 
-def JSONParser(data):
-    j1 = json.loads(data)
-    return j1
+from utils import get_dates_from_input_dir
 
 def get_social_distancing_files_by_week(social_distancing_files):
     social_distancing_files_by_week = {}
@@ -31,7 +28,7 @@ def get_social_distancing_files_by_week(social_distancing_files):
 def main():
     parser = argparse.ArgumentParser(description="Construct the h_ci(t) matrix, one for each week considered")
     parser.add_argument("input_directory", type=str, help="the directory where the social distancing are stored")
-    parser.add_argument("index_directory", type=str, help="the directory where the matrix index are stored")
+    parser.add_argument("index_directory", type=str, help="the directory where the cbg index matrix is stored")
     parser.add_argument("output_directory", type=str, help="the directory where save the matrixes elaborated")
     args = parser.parse_args()
     input_dir = args.input_directory
@@ -39,24 +36,21 @@ def main():
     output_dir = args.output_directory
 
     if not os.path.isdir(input_dir):
-        print("Input directory is not a directory")
-        sys.exit(1)
+        sys.exit("Input directory is not a directory")
     
     cbg_idx_filename = os.path.join(index_dir, "cbg_indexes.csv")
 
     if not os.path.isfile(cbg_idx_filename):
-        print("The given indexes directory do not contain the valid index file")
-        sys.exit(1)
+        sys.exit("The given indexes directory do not contain the valid index file")
     
     os.makedirs(output_dir, exist_ok=True)
 
     cbg_idx_file = pd.read_csv(cbg_idx_filename)
     
-    social_distancing_files = [(path, os.path.join(input_dir, path)) for path in os.listdir(input_dir) if path.endswith(".csv")]
+    social_distancing_files = get_dates_from_input_dir(input_dir)
 
     if len(social_distancing_files) == 0:
-        print("Given input directory do not contain any CSV file") 
-        sys.exit(1)
+        sys.exit("Given input directory do not contain any CSV file")
 
     social_distancing_files_by_week = get_social_distancing_files_by_week(social_distancing_files)
 
@@ -64,7 +58,7 @@ def main():
         day_of_the_week = 0
         merged_df_set = False
         for date, filename, filepath in social_distancing_files_by_week[week]:
-            print("Reading CSV file ", filepath)
+            print("Reading CSV file", filepath)
             df = pd.read_csv(filepath)
             fraction_left_home = 1 - (df["completely_home_device_count"] / df["device_count"])
 
@@ -88,8 +82,6 @@ def main():
             flhs.append(ordered_df["fraction_left_home_" + str(day)].tolist())
         fhls_array = np.asarray(flhs, dtype=np.float32).T
 
-        # print(fhls_array)
-        
         output_filepath = os.path.join(output_dir, week)
         print("Writing file ", output_filepath)
         np.save(output_filepath, fhls_array)

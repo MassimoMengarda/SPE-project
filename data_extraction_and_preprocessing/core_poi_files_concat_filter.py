@@ -1,23 +1,26 @@
+import argparse
 import sys
 import os
 
 import pandas as pd
 
 def main():
-    if len(sys.argv) < 3:
-        sys.exit("Usage: PATH/python3 core_poi_files_merge_filter.py <input directory> <metro area postal codes input filename> <output filename>")
-    
-    input_directory = sys.argv[1]
-    zip_codes_filepath = sys.argv[2]
-    output_filename = sys.argv[3]
+    parser = argparse.ArgumentParser(description="Concatenate all the core poi files and filter them by zip codes")
+    parser.add_argument("input_directory", type=str, help="the directory where the core poi files are stored")
+    parser.add_argument("zip_codes_filepath", type=str, help="the path to where ny metro area zip codes file is stored")
+    parser.add_argument("output_filename", type=str, help="the path where to save the result")
+    args = parser.parse_args()
+    input_dir = args.input_directory
+    zip_codes_filepath = args.zip_codes_filepath
+    output_filename = args.output_filename
 
-    if not os.path.isdir(input_directory):
-        sys.exit(f"Error: {input_directory} is not a valid directory")
+    if not os.path.isdir(input_dir):
+        sys.exit(f"Error: {input_dir} is not a valid directory")
     
-    paths = [os.path.join(input_directory, filename) for filename in os.listdir(input_directory) if filename.endswith(".csv")]
+    paths = [os.path.join(input_dir, filename) for filename in os.listdir(input_dir) if filename.endswith(".csv")]
 
     if len(paths) == 0:
-        sys.exit(f"Error: no csv file were find in directory {input_directory}")
+        sys.exit(f"Error: no csv file were find in directory {input_dir}")
     
     dfs = []
     for path in paths:
@@ -38,7 +41,6 @@ def main():
 
     print("Writing csv file", output_filename)
     final_df.to_csv(output_filename, index = False)
-
 
 if __name__ == "__main__":
     main()
