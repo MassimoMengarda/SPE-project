@@ -38,7 +38,10 @@ def main():
 
     if len(pattern_files) == 0:
         sys.exit("Given input directory do not contain any CSV file")
-
+    
+    is_aggregate_sum_w_set = False
+    aggregate_sum_w = None
+    
     for filename, pattern_file in pattern_files:
         print("Reading CSV file", pattern_file)
         df = pd.read_csv(pattern_file, converters={"postal_code": str, "visitor_home_cbgs": JSONParser})
@@ -69,9 +72,23 @@ def main():
         coo_shape = (poi_idx_file["poi_matrix_idx"].max() + 1, cbg_idx_file["cbg_matrix_idx"].max() + 1)
         
         w_r_sparse_matrix = coo_matrix(coo_init_value, shape=coo_shape)
+
+        if is_aggregate_sum_w_set:
+            aggregate_sum_w += w_r_sparse_matrix
+        else:
+            aggregate_sum_w = w_r_sparse_matrix
+            is_aggregate_sum_w_set = True
+
         output_filepath = os.path.join(output_dir, (os.path.splitext(filename)[0] + ".npz"))
         print("Writing file", output_filepath)
         save_npz(output_filepath, w_r_sparse_matrix)
+
+    R = len(pattern_files) # Number of weeks to be considered
+    aggregate_sum_w /= R
+
+    output_filepath = os.path.join(output_dir, "aggregate_visit_matrix.npz")
+    print("Writing file", output_filepath)
+    save_npz(output_filepath, aggregate_sum_w)
 
 if __name__ == "__main__":
     main()

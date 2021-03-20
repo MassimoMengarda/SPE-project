@@ -34,7 +34,16 @@ def main():
 
     if len(pattern_files) == 0:
         sys.exit("Given input directory do not contain any CSV file")
+    
+    poi_categories_path = os.path.join(index_dir, "poi_categories.csv")
 
+    if not os.path.isfile(poi_categories_path):
+        sys.exit("The given indexes directory do not contain the valid poi categories file")
+
+    poi_categories_df = pd.read_csv(poi_categories_path)
+    categories = pd.unique(poi_categories_df["top_category"])
+    categories = categories[~pd.isnull(categories)]
+    
     for filename, pattern_file in pattern_files:
         print("Reading CSV file", pattern_file)
         df = pd.read_csv(pattern_file)
@@ -47,6 +56,12 @@ def main():
 
         merged_df["median_dwell"] = merged_df["median_dwell"] / 60
         delta_pj_matrix = merged_df["median_dwell"].to_numpy()
+
+        # Each outlier is set to the 90th percentile
+        for category in categories:
+            this_category = poi_categories_df["top_category"] == category
+            quantile_90th = np.quantile(delta_pj_matrix[this_category], 0.9)
+            delta_pj_matrix[np.logical_and(this_category, delta_pj_matrix > quantile_90th)] = quantile_90th
 
         output_filepath = os.path.join(output_dir, os.path.splitext(filename)[0])
         print("Writing file", output_filepath)

@@ -24,11 +24,16 @@ def main():
         sys.exit("Input directory is not a directory")
     
     poi_idx_filename = os.path.join(index_dir, "poi_indexes.csv")
+    poi_categories_path = os.path.join(index_dir, "poi_categories.csv")
 
-    if not os.path.isfile(poi_idx_filename):
-        sys.exit("The given indexes directory do not contain the valid index file")
+    if not os.path.isfile(poi_idx_filename) and not os.path.isfile(poi_categories_path):
+        sys.exit("The given indexes directory do not contain the valid index files")
 
     poi_idx_file = pd.read_csv(poi_idx_filename)
+
+    poi_categories_df = pd.read_csv(poi_categories_path)
+    categories = pd.unique(poi_categories_df["top_category"])
+    categories = categories[~pd.isnull(categories)]
 
     os.makedirs(output_dir, exist_ok=True)
 
@@ -66,6 +71,8 @@ def main():
         dwell = np.ceil(delta_pj_matrix)
         dwell_correction_factor = dwell_correction_factor / dwell
 
+        print("Computing visitors at each hour")
+
         for i in range(v_pj_t_matrix.shape[1]):
             hour_visitor_to_report_from_i = v_pj_t_matrix[:, [i]]
 
@@ -77,7 +84,24 @@ def main():
                 visitor_in_the_place_matrix[:, [j]] = sum_visitor
         
         visitor_in_the_place_matrix = visitor_in_the_place_matrix * np.reshape(dwell_correction_factor, (dwell_correction_factor.shape[0], 1))
+        
+        print("Computing outliers")
+        # Each outlier is set to the 95th percentile
+        for category in categories:
+            this_category = poi_categories_df["top_category"] == category
+            quantile_95th = np.quantile(visitor_in_the_place_matrix[this_category], 0.95, axis=0)
+
+            category_column = np.reshape(this_category.values, (this_category.shape[0], 1))
+            is_in_category_matrix = np.repeat(category_column, visitor_in_the_place_matrix.shape[1], axis=1)
+
+            visitor_to_modify = np.logical_and(is_in_category_matrix, visitor_in_the_place_matrix > quantile_95th)
+            np.putmask(visitor_in_the_place_matrix, visitor_to_modify, np.reshape(quantile_95th, (1, quantile_95th.shape[0])))
+            
         visitor_in_the_place_sparse_matrix = coo_matrix(visitor_in_the_place_matrix)
+
+        us_population = 322087547
+        safegraph_devices = 47971302
+        visitor_in_the_place_sparse_matrix *= (us_population / safegraph_devices)
         
         output_filepath = os.path.join(output_dir, (os.path.splitext(filename)[0] + ".npz"))
         print("Writing file", output_filepath)
