@@ -10,11 +10,10 @@ from rtree import index
 
 from utils import read_shapefile
 
-def main(input_dir, output_dir):
+def main(input_dir, zip_in_metro_area_filepath, output_filepath):
     state_cbg_files = ["tl_2020_34_bg", "tl_2020_36_bg", "tl_2020_42_bg"]
-
     zcta = read_shapefile(os.path.join(input_dir, "zcta", "tl_2020_us_zcta510"))
-    os.makedirs(output_dir, exist_ok=True)
+    zip_in_metro_df = read_csv(zip_in_metro_area_filepath, converters={"zip_code": str})
 
     zcta_records = zcta.records()
     zcta_shapes = zcta.shapes()
@@ -58,14 +57,21 @@ def main(input_dir, output_dir):
 
     out_df = pd.DataFrame(data={"zip": zip_bind, "cbg": cbg_bind})
     out_df.drop_duplicates(inplace=True)
-    out_df.to_csv(output_dir, index=False)
+
+    print("Filtering data")
+    is_metro_area = out_df["zip"].isin(zip_in_metro_df["zip_code"])
+    final_df = out_df[is_metro_area]
+
+    final_df.to_csv(output_filepath, index=False)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Construct the cbg zip table")
     parser.add_argument("input_directory", type=str, help="the directory where the shape files are stored")
-    parser.add_argument("output_directory", type=str, help="the path where to save the result")
+    parser.add_argument("zip_in_metro_area_filepath", type=str, help="the path to the zip in metro area file")
+    parser.add_argument("output_filepath", type=str, help="the file path where to save the result")
     args = parser.parse_args()
     input_dir = args.input_directory
-    output_dir = args.output_directory
+    zip_in_metro_area_filepath = args.zip_in_metro_area_filepath
+    output_filepath = args.output_filepath
 
-    main(input_dir, output_dir)
+    main(input_dir, zip_in_metro_area_filepath, output_filepath)
