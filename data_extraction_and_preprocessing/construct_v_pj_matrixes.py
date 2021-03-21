@@ -6,52 +6,20 @@ import numpy as np
 import pandas as pd
 from scipy.sparse import coo_matrix, save_npz
 
-from utils import JSONParser, get_dates_from_input_dir
+from utils import JSONParser, get_dates_from_input_dir, read_csv, read_npy
 
-def main():
-    parser = argparse.ArgumentParser(description="Construct the v_pj(t) matrixes, one for each week considered")
-    parser.add_argument("input_directory", type=str, help="the directory where the weekly patterns are stored")
-    parser.add_argument("index_directory", type=str, help="the directory where the poi index matrix is stored")
-    parser.add_argument("delta_pj_matrixes_directory", type=str, help="the directory where the delta pj matrixes are stored")
-    parser.add_argument("output_directory", type=str, help="the directory where save the matrixes elaborated")
-    args = parser.parse_args()
-    input_dir = args.input_directory
-    index_dir = args.index_directory
-    delta_pj_dir = args.delta_pj_matrixes_directory
-    output_dir = args.output_directory
+def main(input_dir, index_dir, delta_pj_dir, output_dir):    
+    poi_idx_file = read_csv(os.path.join(index_dir, "poi_indexes.csv"))
+    poi_categories_df = read_csv(os.path.join(index_dir, "poi_categories.csv"))
+    pattern_files = get_dates_from_input_dir(input_dir)
+    delta_pj_files =get_dates_from_input_dir(delta_pj_dir, extension=".npy")]
+    os.makedirs(output_dir, exist_ok=True)
 
-    if not os.path.isdir(input_dir):
-        sys.exit("Input directory is not a directory")
-    
-    poi_idx_filename = os.path.join(index_dir, "poi_indexes.csv")
-    poi_categories_path = os.path.join(index_dir, "poi_categories.csv")
-
-    if not os.path.isfile(poi_idx_filename) and not os.path.isfile(poi_categories_path):
-        sys.exit("The given indexes directory do not contain the valid index files")
-
-    poi_idx_file = pd.read_csv(poi_idx_filename)
-
-    poi_categories_df = pd.read_csv(poi_categories_path)
     categories = pd.unique(poi_categories_df["top_category"])
     categories = categories[~pd.isnull(categories)]
 
-    os.makedirs(output_dir, exist_ok=True)
-
-    if not os.path.isdir(delta_pj_dir):
-        sys.exit("Input directory is not a directory")
-    
-    pattern_files = get_dates_from_input_dir(input_dir)
-    delta_pj_files = [os.path.join(delta_pj_dir, path) for path in os.listdir(delta_pj_dir) if path.endswith(".npy")]
-
-    if len(pattern_files) == 0:
-        sys.exit("Given input directory do not contain any CSV file")
-        
-    if len(delta_pj_files) == 0:
-        sys.exit("Given input directory do not contain any NPY file")
-
     for (filename, pattern_file), delta_pj_filename in zip(pattern_files, delta_pj_files):
-        print("Reading CSV file", pattern_file)
-        df = pd.read_csv(pattern_file, converters={"postal_code": str, "visits_by_each_hour": JSONParser})
+        df = read_csv(pattern_file, converters={"postal_code": str, "visits_by_each_hour": JSONParser})
 
         reduced_df = pd.DataFrame(data={"poi": df["safegraph_place_id"], "visits_by_each_hour": df["visits_by_each_hour"]})
         merged_df = pd.merge(poi_idx_file, reduced_df, on="poi", how="left")
@@ -64,15 +32,13 @@ def main():
         v_pj_t_matrix = np.asarray(v_pj_t_matrix, dtype=np.float32)
         visitor_in_the_place_matrix = np.zeros(v_pj_t_matrix.shape)
 
-        print("Reading NPY file", delta_pj_filename)
-        delta_pj_matrix = np.load(delta_pj_filename)
+        delta_pj_matrix = read_npy(delta_pj_filename)
         
         dwell_correction_factor = delta_pj_matrix.copy()
         dwell = np.ceil(delta_pj_matrix)
         dwell_correction_factor = dwell_correction_factor / dwell
 
         print("Computing visitors at each hour")
-
         for i in range(v_pj_t_matrix.shape[1]):
             hour_visitor_to_report_from_i = v_pj_t_matrix[:, [i]]
 
@@ -85,8 +51,8 @@ def main():
         
         visitor_in_the_place_matrix = visitor_in_the_place_matrix * np.reshape(dwell_correction_factor, (dwell_correction_factor.shape[0], 1))
         
-        print("Computing outliers")
         # Each outlier is set to the 95th percentile
+        print("Computing outliers")
         for category in categories:
             this_category = poi_categories_df["top_category"] == category
             quantile_95th = np.quantile(visitor_in_the_place_matrix[this_category], 0.95, axis=0)
@@ -108,5 +74,15 @@ def main():
         save_npz(output_filepath, visitor_in_the_place_sparse_matrix)
 
 if __name__ == "__main__":
-    main()
-    
+    parser = argparse.ArgumentParser(description="Construct the v_pj(t) matrixes, one for each week considered")
+    parser.add_argument("input_directory", type=str, help="the directory where the weekly patterns are stored")
+    parser.add_argument("index_directory", type=str, help="the directory where the poi index matrix is stored")
+    parser.add_argument("delta_pj_matrixes_directory", type=str, help="the directory where the delta pj matrixes are stored")
+    parser.add_argument("output_directory", type=str, help="the directory where save the matrixes elaborated")
+    args = parser.parse_args()
+    input_dir = args.input_directory
+    index_dir = args.index_directory
+    delta_pj_dir = args.delta_pj_matrixes_directory
+    output_dir = args.output_directory
+
+    main(input_dir, index_dir, delta_pj_dir, output_dir)

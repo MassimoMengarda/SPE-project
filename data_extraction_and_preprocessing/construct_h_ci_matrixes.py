@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
 
-from utils import get_dates_from_input_dir
+from utils import get_dates_from_input_dir, read_csv
 
 def get_social_distancing_files_by_week(social_distancing_files):
     social_distancing_files_by_week = {}
@@ -25,41 +25,17 @@ def get_social_distancing_files_by_week(social_distancing_files):
 
     return social_distancing_files_by_week
 
-def main():
-    parser = argparse.ArgumentParser(description="Construct the h_ci(t) matrix, one for each week considered")
-    parser.add_argument("input_directory", type=str, help="the directory where the social distancing are stored")
-    parser.add_argument("index_directory", type=str, help="the directory where the cbg index matrix is stored")
-    parser.add_argument("output_directory", type=str, help="the directory where save the matrixes elaborated")
-    args = parser.parse_args()
-    input_dir = args.input_directory
-    index_dir = args.index_directory
-    output_dir = args.output_directory
-
-    if not os.path.isdir(input_dir):
-        sys.exit("Input directory is not a directory")
-    
-    cbg_idx_filename = os.path.join(index_dir, "cbg_indexes.csv")
-
-    if not os.path.isfile(cbg_idx_filename):
-        sys.exit("The given indexes directory do not contain the valid index file")
-    
-    os.makedirs(output_dir, exist_ok=True)
-
-    cbg_idx_file = pd.read_csv(cbg_idx_filename)
-    
+def main(input_dir, index_dir, output_dir):
+    cbg_idx_file = read_csv(os.path.join(index_dir, "cbg_indexes.csv"))
     social_distancing_files = get_dates_from_input_dir(input_dir)
-
-    if len(social_distancing_files) == 0:
-        sys.exit("Given input directory do not contain any CSV file")
-
     social_distancing_files_by_week = get_social_distancing_files_by_week(social_distancing_files)
+    os.makedirs(output_dir, exist_ok=True)
 
     for week in social_distancing_files_by_week:
         day_of_the_week = 0
         merged_df_set = False
         for date, filename, filepath in social_distancing_files_by_week[week]:
-            print("Reading CSV file", filepath)
-            df = pd.read_csv(filepath)
+            df = read_csv(filepath)
             fraction_left_home = 1 - (df["completely_home_device_count"] / df["device_count"])
 
             df = pd.DataFrame({"cbg" : df["origin_census_block_group"], "fraction_left_home_" + str(day_of_the_week) : fraction_left_home})
@@ -87,4 +63,13 @@ def main():
         np.save(output_filepath, fhls_array)
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Construct the h_ci(t) matrix, one for each week considered")
+    parser.add_argument("input_directory", type=str, help="the directory where the social distancing are stored")
+    parser.add_argument("index_directory", type=str, help="the directory where the cbg index matrix is stored")
+    parser.add_argument("output_directory", type=str, help="the directory where save the matrixes elaborated")
+    args = parser.parse_args()
+    input_dir = args.input_directory
+    index_dir = args.index_directory
+    output_dir = args.output_directory
+
+    main(input_dir, index_dir, output_dir)

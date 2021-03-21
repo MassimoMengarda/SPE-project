@@ -6,45 +6,22 @@ import numpy as np
 import pandas as pd
 from scipy.sparse import coo_matrix, save_npz
 
-from utils import JSONParser, get_dates_from_input_dir
+from utils import JSONParser, get_dates_from_input_dir, read_csv
 
-def main():
-    parser = argparse.ArgumentParser(description="Construct the w(r) matrixes, one for each week considered")
-    parser.add_argument("input_directory", type=str, help="the directory where the weekly patterns are stored")
-    parser.add_argument("index_directory", type=str, help="the directory where the poi and cbg index matrixes are stored")
-    parser.add_argument("output_directory", type=str, help="the directory where save the matrixes elaborated")
-    args = parser.parse_args()
-    input_dir = args.input_directory
-    index_dir = args.index_directory
-    output_dir = args.output_directory
-
-    if not os.path.isdir(input_dir):
-        sys.exit("Input directory is not a directory")
-    
-    poi_idx_filename = os.path.join(index_dir, "poi_indexes.csv")
-    cbg_idx_filename = os.path.join(index_dir, "cbg_indexes.csv")
-
-    if (not os.path.isfile(poi_idx_filename)) or (not os.path.isfile(cbg_idx_filename)):
-        sys.exit("The given indexes directory do not contain the valid index files")
-    
+def main(input_dir, index_dir, output_dir):
+    poi_idx_file = read_csv(os.path.join(index_dir, "poi_indexes.csv"))
+    cbg_idx_file = read_csv(os.path.join(index_dir, "cbg_indexes.csv"), converters={"cbg": str})
+    pattern_files = get_dates_from_input_dir(input_dir)
     os.makedirs(output_dir, exist_ok=True)
 
-    poi_idx_file = pd.read_csv(poi_idx_filename)
     poi_idx_file.rename(columns={"matrix_idx": "poi_matrix_idx"}, inplace=True)
-    cbg_idx_file = pd.read_csv(cbg_idx_filename, converters={"cbg": str})
     cbg_idx_file.rename(columns={"matrix_idx": "cbg_matrix_idx"}, inplace=True)
-    
-    pattern_files = get_dates_from_input_dir(input_dir)
-
-    if len(pattern_files) == 0:
-        sys.exit("Given input directory do not contain any CSV file")
     
     is_aggregate_sum_w_set = False
     aggregate_sum_w = None
     
     for filename, pattern_file in pattern_files:
-        print("Reading CSV file", pattern_file)
-        df = pd.read_csv(pattern_file, converters={"postal_code": str, "visitor_home_cbgs": JSONParser})
+        df = read_csv(pattern_file, converters={"postal_code": str, "visitor_home_cbgs": JSONParser})
         
         print("Computing ratio")
         sum_poi_cbg = [sum(x.values()) for x in df["visitor_home_cbgs"]]
@@ -91,4 +68,13 @@ def main():
     save_npz(output_filepath, aggregate_sum_w)
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Construct the w(r) matrixes, one for each week considered")
+    parser.add_argument("input_directory", type=str, help="the directory where the weekly patterns are stored")
+    parser.add_argument("index_directory", type=str, help="the directory where the poi and cbg index matrixes are stored")
+    parser.add_argument("output_directory", type=str, help="the directory where save the matrixes elaborated")
+    args = parser.parse_args()
+    input_dir = args.input_directory
+    index_dir = args.index_directory
+    output_dir = args.output_directory
+
+    main(input_dir, index_dir, output_dir)
