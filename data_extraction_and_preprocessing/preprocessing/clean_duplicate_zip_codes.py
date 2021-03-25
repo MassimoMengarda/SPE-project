@@ -3,7 +3,7 @@ import sys
 
 import pandas as pd
 
-from utils import read_csv
+from ..utils import read_csv
 
 def main(input_filepath, output_filepath):
     df = read_csv(input_filepath, converters={"zip_code": str})

@@ -4,7 +4,7 @@ import os
 
 import pandas as pd
 
-from utils import get_dates_from_input_dir, read_csv
+from ..utils import get_dates_from_input_dir, read_csv
 
 def main(input_dir, zip_codes_filepath, output_filename):
     paths = get_dates_from_input_dir(input_dir)

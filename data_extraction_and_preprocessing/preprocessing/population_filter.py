@@ -4,7 +4,7 @@ import os
 
 import pandas as pd
 
-from utils import read_csv
+from ..utils import read_csv
 
 def main(input_dir, zip_cbg_filename, output_dir):
     paths = [(filename, os.path.join(data_directory, filename)) for filename in os.listdir(data_directory) if filename.endswith(".csv") and filename != "cbg_patterns.csv"]
