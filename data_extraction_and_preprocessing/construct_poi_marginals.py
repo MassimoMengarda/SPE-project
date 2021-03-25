@@ -12,7 +12,7 @@ def main(input_dir, index_dir, delta_pj_dir, output_dir):
     poi_idx_file = read_csv(os.path.join(index_dir, "poi_indexes.csv"))
     poi_categories_df = read_csv(os.path.join(index_dir, "poi_categories.csv"))
     pattern_files = get_dates_from_input_dir(input_dir)
-    delta_pj_files =get_dates_from_input_dir(delta_pj_dir, extension=".npy")]
+    delta_pj_files = get_dates_from_input_dir(delta_pj_dir, extension=".npy")
     os.makedirs(output_dir, exist_ok=True)
 
     categories = pd.unique(poi_categories_df["top_category"])
@@ -74,7 +74,7 @@ def main(input_dir, index_dir, delta_pj_dir, output_dir):
         save_npz(output_filepath, visitor_in_the_place_sparse_matrix)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Construct the v_pj(t) matrixes, one for each week considered")
+    parser = argparse.ArgumentParser(description="Construct the poi marginal matrixes, one for each weekly pattern considered")
     parser.add_argument("input_directory", type=str, help="the directory where the weekly patterns are stored")
     parser.add_argument("index_directory", type=str, help="the directory where the poi index matrix is stored")
     parser.add_argument("delta_pj_matrixes_directory", type=str, help="the directory where the delta pj matrixes are stored")

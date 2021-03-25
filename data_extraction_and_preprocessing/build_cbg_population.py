@@ -8,7 +8,7 @@ import pandas as pd
 from utils import get_dates_from_input_dir, read_csv
 
 def main(input_dir, index_dir, output_filepath):
-    cbg_index_df = pd.read_csv(os.path.join(index_dir, "cbg_indexes.csv"))
+    cbg_index_df = read_csv(os.path.join(index_dir, "cbg_indexes.csv"))
     df = read_csv(os.path.join(input_dir, "cbg_b01.csv"))
 
     reduce_df = pd.DataFrame({'cbg':df['census_block_group'], 'cbg_population': df['B01003e1']})

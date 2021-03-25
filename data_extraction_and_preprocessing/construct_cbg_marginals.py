@@ -25,7 +25,7 @@ def main(input_dir, cbg_pop_matrix_directory, hci_dir, output_dir):
         n_pois_t = vpj_matrix.sum(axis=0)
         cbg_marginals = np.multiply(n_pois_t, np.repeat((hci_matrix * cbg_pop_matrix) / np.sum(hci_matrix * cbg_pop_matrix, axis=0), 24, axis=1))
 
-        output_filepath = os.path.join(output_dir, vpj_filename)
+        output_filepath = os.path.join(output_dir, os.path.splitext(vpj_filename)[0])
         print("Writing file", output_filepath)
         np.save(output_filepath, cbg_marginals)
 
