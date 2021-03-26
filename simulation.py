@@ -1,83 +1,99 @@
+import argparse
+import os
+import sys
+
 import numpy as np
+import pandas as pd
+from scipy.sparse import coo
 
-t = 0
-time_limit = 24 * 7
+from data_extraction_and_preprocessing.utils import read_csv, read_npy, read_npz
 
-# TODO: init this data with real data
-cbg_s = np.asarray([100, 100, 100]) 
-cbg_e = np.asarray([3, 0, 0])
-cbg_i = np.asarray([0, 0, 0])
-cbg_r = np.asarray([0, 0, 0])
+# βbase ranges from 0.0012 to 0.024 => 0.0126
+# ψ ranges from 515 to 4,886 => 2700
+# p0 ranges from 10−5 to 10−2 => 0.000495
 
-# TODO: finish this crappy code
-while t < time_limit:
-    delta_ci = get_delta_ci(b_base, cbg_i, cbg_n)
-    delta_pj = get_delta_pj(cbg_i, cbj_n, d_pj, a_pj, w_ij)
+# δE = 96 h (refs. 20,58) and δI = 84 h (ref. 20) based
 
-    cbg_new_e = get_new_e(cbg_s, cbg_i, cbg_n, delta_pj, delta_ci, w_ij, psi)
-    cbg_new_i = get_new_i(cbg_e, delta_e)
-    cbg_new_r = get_new_r(cbg_i, delta_i)
+class Model:
+    def __init__(self, cbgs_population, ipfp_dir, pois_dwell_dir, n_pois, pois_area, weeks, b_base=0.0126, psi=2700, p_0=0.000495, t_e=96, t_i=84):
+        self.t = 0
+        self.weeks = weeks
+        self.b_base = b_base
+        self.psi = psi
+        self.p_0 = p_0
+        self.t_e = t_e
+        self.t_i = t_i
+        
+        self.n_pois = n_pois
+        self.pois_area = np.reshape(pois_area, (pois_area.shape[0], 1))
+        self.n_cbgs = len(cbgs_population)
+        self.cbgs_population = np.reshape(cbgs_population, (1, cbgs_population.shape[0]))
 
+        self.pois_dwell_dir = pois_dwell_dir
+        self.ipfp_dir = ipfp_dir
 
-def get_delta_ci(b_base, cbg_i, cbg_n):
-    return b_base * (cbg_i / cbg_n)
+    def simulate(self):
+        cbg_e = np.random.binomial(self.cbgs_population, self.p_0)
+        cbg_s = self.cbgs_population - cbg_e
+        cbg_i = np.zeros((1, self.n_cbgs))
+        cbg_r = np.zeros((1, self.n_cbgs))
+        
+        for week in self.weeks:
+            weekly_pois_dwell = read_npy(os.path.join(self.pois_dwell_dir, week + ".npy"))
+            weekly_pois_dwell = np.reshape(weekly_pois_dwell, (weekly_pois_dwell.shape[0], 1))
+            week_time = 24 * 7
+            
+            while self.t < week_time:
+                w_ij = read_npz(os.path.join(self.ipfp_dir, week, "{:0>2d}.npz".format(self.t)))
 
-def get_delta_pj(cbg_i, cbj_n, d_pj, a_pj, w_ij):
-    return (np.square(d_pj) / a_pj) * np.sum(cbg_i / cbj_n * w_ij, axis=0)
+                delta_ci = self.get_delta_ci(cbg_i)
+                delta_pj = self.get_delta_pj(cbg_i, w_ij, weekly_pois_dwell)
 
-def get_new_e(cbg_s, cbg_i, cbg_n, delta_pj, delta_ci, w_ij, psi):
-    pois = np.random.poisson(psi * (cbg_s / cbg_n) * np.sum(delta_pj * w_ij))
-    binom = np.random.binomial(cbg_s, delta_ci)
+                cbg_new_e = self.get_new_e(cbg_s, cbg_i, delta_pj, delta_ci, w_ij)
+                cbg_new_i = self.get_new_i(cbg_e)
+                cbg_new_r = self.get_new_r(cbg_i)
 
-    return pois + binom
+                self.t += 1
 
-def get_new_i(cbg_e, delta_e):
-    return np.random.binomial(cbg_e, 1 / delta_e)
+    def get_delta_ci(self, cbg_i):
+        return self.b_base * (cbg_i / self.cbgs_population)
 
-def get_new_r(cbg_i, delta_i):
-    return np.random.binomial(cbg_i, 1 / delta_i)
+    def get_delta_pj(self, cbg_i, w_ij, weekly_pois_dwell): # TODO result matrix  = [[nan], [nan], [nan], ...,[nan]]
+        return np.multiply((np.square(weekly_pois_dwell) / self.pois_area), w_ij.multiply(cbg_i / self.cbgs_population).sum(axis=1))
 
+    def get_new_e(self, cbg_s, cbg_i, delta_pj, delta_ci, w_ij):
+        pois = np.random.poisson(self.psi * (cbg_s / self.cbgs_population) * np.sum(delta_pj * w_ij))
+        binom = np.random.binomial(cbg_s, delta_ci)
+        return pois + binom
 
-#################################################
-#################################################
-#################################################
+    def get_new_i(self, cbg_e):
+        return np.random.binomial(cbg_e, 1 / self.t_e)
 
-# if experiment_to_run == 'normal_grid_search':
-#     p_sicks = [1e-2, 5e-3, 2e-3, 1e-3, 5e-4, 2e-4, 1e-4, 5e-5, 2e-5, 1e-5]
-#     home_betas = np.linspace(BETA_AND_PSI_PLAUSIBLE_RANGE['min_home_beta'],
-#         BETA_AND_PSI_PLAUSIBLE_RANGE['max_home_beta'], 10)
-#     poi_psis = np.linspace(BETA_AND_PSI_PLAUSIBLE_RANGE['min_poi_psi'], BETA_AND_PSI_PLAUSIBLE_RANGE['max_poi_psi'], 15)
-#     for home_beta in home_betas:
-#         for poi_psi in poi_psis:
-#             for p_sick in p_sicks:
-#                 configs_with_changing_params.append({'home_beta':home_beta, 'poi_psi':poi_psi, 'p_sick_at_t0':p_sick})
+    def get_new_r(self, cbg_i):
+        return np.random.binomial(cbg_i, 1 / self.t_i)
 
-#     # ablation analyses.
-#     for home_beta in np.linspace(0.005, 0.04, 20):
-#         for p_sick in p_sicks:
-#             configs_with_changing_params.append({'home_beta':home_beta, 'poi_psi':0, 'p_sick_at_t0':p_sick})
-
-# elif experiment_to_run == 'grid_search_aggregate_mobility':
-#     p_sicks = [1e-2, 5e-3, 2e-3, 1e-3, 5e-4, 2e-4, 1e-4, 5e-5, 2e-5, 1e-5]
-#     beta_and_psi_plausible_range_for_aggregate_mobility = {"min_home_beta": 0.0011982272027079982,
-#                                     "max_home_beta": 0.023964544054159966,
-#                                     "max_poi_psi": 0.25,
-#                                     "min_poi_psi": 2.5}
-#     home_betas = np.linspace(beta_and_psi_plausible_range_for_aggregate_mobility['min_home_beta'],
-#                              beta_and_psi_plausible_range_for_aggregate_mobility['max_home_beta'], 10)
-#     poi_psis = np.linspace(beta_and_psi_plausible_range_for_aggregate_mobility['min_poi_psi'],
-#                            beta_and_psi_plausible_range_for_aggregate_mobility['max_poi_psi'], 15)
-#     for home_beta in home_betas:
-#         for poi_psi in poi_psis:
-#             for p_sick in p_sicks:
-#                 configs_with_changing_params.append({'home_beta':home_beta, 'poi_psi':poi_psi, 'p_sick_at_t0':p_sick})
-
-# elif experiment_to_run == 'grid_search_home_proportion_beta':
-#     p_sicks = [1e-2, 5e-3, 2e-3, 1e-3, 5e-4, 2e-4, 1e-4, 5e-5, 2e-5, 1e-5]
-#     home_betas = np.linspace(BETA_AND_PSI_PLAUSIBLE_RANGE['min_home_beta'],
-#         BETA_AND_PSI_PLAUSIBLE_RANGE['max_home_beta'], 10)
-#     poi_psis = np.linspace(BETA_AND_PSI_PLAUSIBLE_RANGE['min_poi_psi'], BETA_AND_PSI_PLAUSIBLE_RANGE['max_poi_psi'], 15)
-#     for home_beta in home_betas:
-#         for poi_psi in poi_psis:
-#             for p_sick in p_sicks:
-#                 configs_with_changing_params.append({'home_beta':home_beta, 'poi_psi':poi_psi, 'p_sick_at_t0':p_sick})
+def main(info_dir, ipfp_dir, dwell_dir):
+    poi_index = read_csv(os.path.join(info_dir, "poi_indexes.csv"))
+    n_pois = len(poi_index.index)
+    cbgs_population = read_npy(os.path.join(info_dir, "cbg_population_matrix.npy"))
+    pois_area = read_npy(os.path.join(info_dir, "poi_area.npy"))
+    weeks = ["2019-01-07"]
+    
+    m = Model(cbgs_population, ipfp_dir, dwell_dir, n_pois, pois_area, weeks, b_base=0.0126, psi=2700, p_0=0.000495, t_e=96, t_i=84)
+    m.simulate()
+    
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run the simulation")
+    parser.add_argument("ipfp_directory", type=str, help="the directory where the ipfp matrixes are stored")
+    parser.add_argument("info_directory", type=str, help="the directory where the matrixes index are stored")
+    parser.add_argument("dwell_directory", type=str, help="the directory where the dwell matrixes are stored")
+    parser.add_argument("output_directory", type=str, help="the directory where store the index result")
+    args = parser.parse_args()
+    ipfp_dir = args.ipfp_directory
+    info_dir = args.info_directory
+    dwell_dir = args.dwell_directory
+    output_dir = args.output_directory
+    
+    # TODO use output directory
+    main(info_dir, ipfp_dir, dwell_dir)
+    
