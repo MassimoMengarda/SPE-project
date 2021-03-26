@@ -8,9 +8,9 @@ from scipy.sparse import coo_matrix, save_npz
 
 from utils import JSONParser, get_dates_from_input_dir, read_csv, read_npy
 
-def main(input_dir, index_dir, delta_pj_dir, output_dir):    
-    poi_idx_file = read_csv(os.path.join(index_dir, "poi_indexes.csv"))
-    poi_categories_df = read_csv(os.path.join(index_dir, "poi_categories.csv"))
+def main(input_dir, info_dir, delta_pj_dir, output_dir):    
+    poi_idx_file = read_csv(os.path.join(info_dir, "poi_indexes.csv"))
+    poi_categories_df = read_csv(os.path.join(info_dir, "poi_categories.csv"))
     pattern_files = get_dates_from_input_dir(input_dir)
     delta_pj_files = get_dates_from_input_dir(delta_pj_dir, extension=".npy")
     os.makedirs(output_dir, exist_ok=True)
@@ -76,13 +76,13 @@ def main(input_dir, index_dir, delta_pj_dir, output_dir):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Construct the poi marginal matrixes, one for each weekly pattern considered")
     parser.add_argument("input_directory", type=str, help="the directory where the weekly patterns are stored")
-    parser.add_argument("index_directory", type=str, help="the directory where the poi index matrix is stored")
+    parser.add_argument("info_directory", type=str, help="the directory where the poi index matrix is stored")
     parser.add_argument("delta_pj_matrixes_directory", type=str, help="the directory where the delta pj matrixes are stored")
     parser.add_argument("output_directory", type=str, help="the directory where save the matrixes elaborated")
     args = parser.parse_args()
     input_dir = args.input_directory
-    index_dir = args.index_directory
+    info_dir = args.info_directory
     delta_pj_dir = args.delta_pj_matrixes_directory
     output_dir = args.output_directory
 
-    main(input_dir, index_dir, delta_pj_dir, output_dir)
+    main(input_dir, info_dir, delta_pj_dir, output_dir)

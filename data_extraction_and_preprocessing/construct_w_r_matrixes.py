@@ -8,9 +8,9 @@ from scipy.sparse import coo_matrix, save_npz
 
 from utils import JSONParser, get_dates_from_input_dir, read_csv
 
-def main(input_dir, index_dir, output_dir):
-    poi_idx_file = read_csv(os.path.join(index_dir, "poi_indexes.csv"))
-    cbg_idx_file = read_csv(os.path.join(index_dir, "cbg_indexes.csv"), converters={"cbg": str})
+def main(input_dir, info_dir, output_dir):
+    poi_idx_file = read_csv(os.path.join(info_dir, "poi_indexes.csv"))
+    cbg_idx_file = read_csv(os.path.join(info_dir, "cbg_indexes.csv"), converters={"cbg": str})
     pattern_files = get_dates_from_input_dir(input_dir)
     os.makedirs(output_dir, exist_ok=True)
 
@@ -70,11 +70,11 @@ def main(input_dir, index_dir, output_dir):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Construct the w(r) matrixes, one for each week considered")
     parser.add_argument("input_directory", type=str, help="the directory where the weekly patterns are stored")
-    parser.add_argument("index_directory", type=str, help="the directory where the poi and cbg index matrixes are stored")
+    parser.add_argument("info_directory", type=str, help="the directory where the poi and cbg index matrixes are stored")
     parser.add_argument("output_directory", type=str, help="the directory where save the matrixes elaborated")
     args = parser.parse_args()
     input_dir = args.input_directory
-    index_dir = args.index_directory
+    info_dir = args.info_directory
     output_dir = args.output_directory
 
-    main(input_dir, index_dir, output_dir)
+    main(input_dir, info_dir, output_dir)

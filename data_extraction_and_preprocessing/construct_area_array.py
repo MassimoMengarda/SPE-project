@@ -7,10 +7,10 @@ import pandas as pd
 
 from utils import read_csv
 
-def main(input_filepath, index_dir, output_filepath):
+def main(input_filepath, info_dir, output_filepath):
     area_file = read_csv(input_filepath)
-    poi_idx_file = read_csv(os.path.join(index_dir, "poi_indexes.csv"))
-    poi_categories_df = read_csv(os.path.join(index_dir, "poi_categories.csv"))
+    poi_idx_file = read_csv(os.path.join(info_dir, "poi_indexes.csv"))
+    poi_categories_df = read_csv(os.path.join(info_dir, "poi_categories.csv"))
 
     categories = pd.unique(poi_categories_df["top_category"])
     categories = categories[~pd.isnull(categories)]
@@ -39,11 +39,11 @@ def main(input_filepath, index_dir, output_filepath):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Construct the POI area array")
     parser.add_argument("input_filepath", type=str, help="the path where the area file is stored")
-    parser.add_argument("index_directory", type=str, help="the directory where the poi index and poi category matrixes are stored")
+    parser.add_argument("info_directory", type=str, help="the directory where the poi index and poi category matrixes are stored")
     parser.add_argument("output_filepath", type=str, help="the path where save the array elaborated")
     args = parser.parse_args()
     input_filepath = args.input_filepath
-    index_dir = args.index_directory
+    info_dir = args.info_directory
     output_filepath = args.output_filepath
 
-    main(input_filepath, index_dir, output_filepath)
+    main(input_filepath, info_dir, output_filepath)

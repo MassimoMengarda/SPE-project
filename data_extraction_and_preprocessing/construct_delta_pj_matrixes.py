@@ -8,10 +8,10 @@ from scipy.sparse import coo_matrix, save_npz
 
 from utils import get_dates_from_input_dir, read_csv
 
-def main(input_dir, index_dir, output_dir):
-    poi_idx_file = read_csv(os.path.join(index_dir, "poi_indexes.csv"))
+def main(input_dir, info_dir, output_dir):
+    poi_idx_file = read_csv(os.path.join(info_dir, "poi_indexes.csv"))
     pattern_files = get_dates_from_input_dir(input_dir)
-    poi_categories_df = read_csv(os.path.join(index_dir, "poi_categories.csv"))
+    poi_categories_df = read_csv(os.path.join(info_dir, "poi_categories.csv"))
     os.makedirs(output_dir, exist_ok=True)
 
     categories = pd.unique(poi_categories_df["top_category"])
@@ -42,11 +42,11 @@ def main(input_dir, index_dir, output_dir):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Construct the delta pj matrixes, one for each week considered")
     parser.add_argument("input_directory", type=str, help="the directory where the weekly patterns are stored")
-    parser.add_argument("index_directory", type=str, help="the directory where the poi index matrix is stored")
+    parser.add_argument("info_directory", type=str, help="the directory where the poi index matrix is stored")
     parser.add_argument("output_directory", type=str, help="the directory where save the matrixes elaborated")
     args = parser.parse_args()
     input_dir = args.input_directory
-    index_dir = args.index_directory
+    info_dir = args.info_directory
     output_dir = args.output_directory
 
-    main(input_dir, index_dir, output_dir)
+    main(input_dir, info_dir, output_dir)
