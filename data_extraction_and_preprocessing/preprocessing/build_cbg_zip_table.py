@@ -8,7 +8,7 @@ import Polygon
 from progress.bar import Bar
 from rtree import index
 
-from ..utils import read_shapefile
+from ..utils import read_shapefile, read_csv
 
 def main(input_dir, zip_in_metro_area_filepath, output_filepath):
     state_cbg_files = ["tl_2020_34_bg", "tl_2020_36_bg", "tl_2020_42_bg"]

@@ -52,7 +52,7 @@ def read_npz(filepath):
     return load_npz(filepath)
 
 def read_shapefile(filepath):
-    if not os.path.isfile(filepath):
+    if not os.path.isfile(filepath + ".shp"):
         sys.exit(f"{filepath} is not a valid shape file")
     print("Reading shape file", filepath)
     return shapefile.Reader(filepath)
