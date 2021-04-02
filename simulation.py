@@ -71,7 +71,7 @@ class Model:
             cbg_e = cbg_e - cbg_new_i + cbg_new_e
             cbg_s = cbg_s - cbg_new_e
 
-            yield week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive
+            yield simulation_time, week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive, cbg_new_i
 
             if not np.any(cbg_e + cbg_i):
                 print(f"Simulation of week {week_string} terminanted at hour {week_t} because there were no more infectious")
@@ -119,7 +119,7 @@ def main(info_dir, ipfp_dir, dwell_dir, output_dir):
     simulation_end = datetime.datetime(2019, 1, 13, 23) # TODO pass as arguments
 
     m = Model(cbgs_population, ipfp_dir, dwell_dir, output_dir, n_pois, pois_area, b_base=0.0126, psi=2700, p_0=0.000495, t_e=96, t_i=84)
-    for week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive in m.simulate(simulation_start, simulation_end):
+    for simulation_time, week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive, _ in m.simulate(simulation_start, simulation_end):
         m.save_result(week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive)
     
 if __name__ == "__main__":
