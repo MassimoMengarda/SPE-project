@@ -18,7 +18,7 @@ def main(sim_dir, info_dir, output_dir):
     # cbgs_population = np.reshape(cbgs_population, (1, cbgs_population.shape[0]))
 
     seir_model = np.zeros((5, 0))
-    sample_cbg = 4
+    sample_cbg = 0
 
     for week in weeks:
         for hour in range(weeks_hour):

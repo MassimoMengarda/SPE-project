@@ -56,9 +56,10 @@ def main(input_dir, info_dir, output_dir):
             aggregate_sum_w = w_r_sparse_matrix
             is_aggregate_sum_w_set = True
 
-        output_filepath = os.path.join(output_dir, (os.path.splitext(filename)[0] + ".npz"))
-        print("Writing file", output_filepath)
-        save_npz(output_filepath, w_r_sparse_matrix)
+        # No need to save these files
+        # output_filepath = os.path.join(output_dir, (os.path.splitext(filename)[0] + ".npz"))
+        # print("Writing file", output_filepath)
+        # save_npz(output_filepath, w_r_sparse_matrix)
 
     R = len(pattern_files) # Number of weeks to be considered
     aggregate_sum_w /= R

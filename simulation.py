@@ -39,7 +39,7 @@ class Model:
         simulation_timedelta = simulation_start_datetime - simulation_end_datetime
 
         weekly_pois_dwell = None
-        while simulation_time < simulation_end_datetime:
+        while simulation_time <= simulation_end_datetime:
             # print(f"simulation_time {simulation_time}")
             week_num = simulation_time.weekday() #
             week_start_date = (simulation_time - datetime.timedelta(days=week_num)).date()
@@ -53,7 +53,6 @@ class Model:
             time_difference_from_week_start = simulation_time - datetime.datetime.combine(week_start_date, datetime.datetime.min.time())
             week_t = time_difference_from_week_start.days * 24 + time_difference_from_week_start.seconds // 3600
             week_total_time = 24 * 7
-
 
             w_ij = read_npz(os.path.join(self.ipfp_dir, week_string, "{:0>3d}.npz".format(week_t)))
 
