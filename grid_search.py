@@ -1,5 +1,8 @@
 from simulation import Model
 
+import math
+import sys
+
 def main(info_dir, ipfp_dir, dwell_dir, cases_filepath, output_dir):
     poi_index = read_csv(os.path.join(info_dir, "poi_indexes.csv"))
     cases = read_csv(cases_filepath)
@@ -12,18 +15,40 @@ def main(info_dir, ipfp_dir, dwell_dir, cases_filepath, output_dir):
     psi_s = np.linspace(515, 4886, num=15)
     p_0_s = [1e-2, 5e-3, 2e-3, 1e-3, 5e-4, 2e-4, 1e-4, 5e-5, 2e-5, 1e-5]
 
-    best_params = (b_base_s[0], psi_s[0], p_0_s[0])
+    best_params = (sys.float_info.max, -1, -1, -1)
+
+    confirmed_new_cases_proportion = 0.1 # r_c
+    n_simulation = 10
+    delta_c = 168
 
     for b_base in b_base_s:
         for psi in psi_s:
             for p_0 in p_0_s:
-                for i in range(10):
+                day_new_cases = [0 for i in 24 + delta_c]
+                rmse_s = []
+                for i in range(n_simulation):
+                    rmse_sum = 0
+
                     output_dir = os.path.join(output_dir, str(b_base), str(psi), str(p_0))
-                    m = Model(cbgs_population, ipfp_dir, dwell_dir, output_dir, n_pois, pois_area, weeks, b_base, psi, p_0, t_e=96, t_i=84)
-                    m.simulate()
+                    m = Model(cbgs_population, ipfp_dir, dwell_dir, output_dir, n_pois, pois_area, b_base, psi, p_0, t_e=96, t_i=84)
+
+                    for week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive in m.simulate():
+                        day_new_cases.append(np.sum(cbg_i))
+                        day_new_cases.pop(0)
+                        
+                        if day_init == True:
+                            estimated_confirmed_new_cases = confirmed_new_cases_proportion * np.sum(day_new_cases[0:24])
+                            rmse_sum += (estimated_confirmed_new_cases - certified_new_cases) ** 2
                     
-                    # if True: # TODO check if those params are best
-                    #     best_params = (b_base, psi, p_0)
+                    rmse = math.sqrt(rmse_sum / days_of_simulation)
+                    rmse_s.append(rmse)
+
+                average_rmse = sum(rmse_s) / len(rmse_s)
+                print(f"rmse {average_rmse} with b_base {b_base}, psi {psi} p_0 {p_0}")
+                if (best_params[0] > average_rmse):
+                    best_params = (average_rmse, b_base, psi, p_0)
+
+    print("FINAL RESULT: ", best_params)
 
     
 if __name__ == "__main__":
