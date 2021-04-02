@@ -18,7 +18,7 @@ def main(input_dir, info_dir, delta_pj_dir, output_dir):
     categories = pd.unique(poi_categories_df["top_category"])
     categories = categories[~pd.isnull(categories)]
 
-    for (filename, pattern_file), delta_pj_filename in zip(pattern_files, delta_pj_files):
+    for (filename, pattern_file), (_, delta_pj_path) in zip(pattern_files, delta_pj_files):
         df = read_csv(pattern_file, converters={"postal_code": str, "visits_by_each_hour": JSONParser})
 
         reduced_df = pd.DataFrame(data={"poi": df["safegraph_place_id"], "visits_by_each_hour": df["visits_by_each_hour"]})
@@ -32,7 +32,7 @@ def main(input_dir, info_dir, delta_pj_dir, output_dir):
         v_pj_t_matrix = np.asarray(v_pj_t_matrix, dtype=np.float32)
         visitor_in_the_place_matrix = np.zeros(v_pj_t_matrix.shape)
 
-        delta_pj_matrix = read_npy(delta_pj_filename)
+        delta_pj_matrix = read_npy(delta_pj_path)
         
         dwell_correction_factor = delta_pj_matrix.copy()
         dwell = np.ceil(delta_pj_matrix)

@@ -11,7 +11,6 @@ def main(input_dir, zip_cbg_filename, output_dir):
     zip_code_cbg_map = read_csv(zip_cbg_filename, converters={"zip_code": str, "cbg": str})
     os.makedirs(output_dir, exist_ok=True)
     
-
     for filename, path in paths:
         df = read_csv(path, converters={"origin_census_block_group": str})
         is_metro_area = df["origin_census_block_group"].isin(zip_code_cbg_map["cbg"])
