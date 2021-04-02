@@ -10,8 +10,7 @@ from data_extraction_and_preprocessing.utils import read_csv, read_npy, read_npz
 import datetime
 
 class Model:
-    def __init__(self, cbgs_population, ipfp_dir, pois_dwell_dir, output_dir, n_pois, pois_area, weeks, b_base=0.0126, psi=2700, p_0=0.000495, p_dead=0.02, t_e=96, t_i=84):
-        self.weeks = weeks
+    def __init__(self, cbgs_population, ipfp_dir, pois_dwell_dir, output_dir, n_pois, pois_area, b_base=0.0126, psi=2700, p_0=0.000495, p_dead=0.02, t_e=96, t_i=84):
         self.b_base = b_base
         self.psi = psi
         self.p_0 = p_0
@@ -36,26 +35,32 @@ class Model:
         cbg_r_alive = np.zeros((1, self.n_cbgs), dtype=np.int32)
         
         # total_t = 0
-        last_week_loaded = datetime.date(1990, 1, 1).date() # Dummy value
+        last_week_loaded = datetime.datetime(1990, 1, 1).date() # Dummy value
         simulation_time = simulation_start_datetime
 
         simulation_timedelta = simulation_start_datetime - simulation_end_datetime
         # total_simulation_time = simulation_timedelta.days * 24 + simulation_timedelta.seconds // 3600
+        
+        print(f"simulation_start_datetime {simulation_start_datetime}, simulation_end_datetime {simulation_end_datetime}")
 
         weekly_pois_dwell = None
         while simulation_time < simulation_end_datetime:
+            print(f"simulation_time {simulation_time}")
             week_num = simulation_time.weekday() #
             week_start_date = (simulation_time - datetime.timedelta(days=week_num)).date()
+            week_string = week_start_date.strftime("%Y-%m-%d")
+
             if week_start_date != last_week_loaded:
-                weekly_pois_dwell = read_npy(os.path.join(self.pois_dwell_dir, week_start_date.strfmt("%Y-%m-%d") + ".npy"))
+                weekly_pois_dwell = read_npy(os.path.join(self.pois_dwell_dir, week_string + ".npy"))
                 weekly_pois_dwell = np.reshape(weekly_pois_dwell, (weekly_pois_dwell.shape[0], 1))
                 last_week_loaded = week_start_date
             
-            time_difference_from_week_start = week_start_date - simulation_time
+            time_difference_from_week_start = simulation_time - datetime.datetime.combine(week_start_date, datetime.datetime.min.time())
             week_t = time_difference_from_week_start.days * 24 + time_difference_from_week_start.seconds // 3600
             week_total_time = 24 * 7
 
-            w_ij = read_npz(os.path.join(self.ipfp_dir, week_start_date.strfmt("%Y-%m-%d"), "{:0>3d}.npz".format(week_t)))
+
+            w_ij = read_npz(os.path.join(self.ipfp_dir, week_string, "{:0>3d}.npz".format(week_t)))
 
             # Compute the new parameters
             delta_ci = self.get_delta_ci(cbg_i)
@@ -73,16 +78,16 @@ class Model:
             cbg_s = cbg_s - cbg_new_e
 
             if save:
-                self.save_result(week_start_date, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive)
+                self.save_result(week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive)
                 
-            if generator:
-                yield cbg_e, cbg_s, cbg_i, cbg_r_dead, cbg_r_alive, cbg_new_e, cbg_new_i
+            # if generator:
+            #     yield cbg_e, cbg_s, cbg_i, cbg_r_dead, cbg_r_alive, cbg_new_e, cbg_new_i
 
             if not np.any(cbg_e + cbg_i):
-                print(f"Simulation of week {week_start_date} terminanted at hour {week_t} because there were no more infectious")
+                print(f"Simulation of week {week_string} terminanted at hour {week_t} because there were no more infectious")
                 break
             
-            total_t += datetime.timedelta(hours=1)
+            simulation_time += datetime.timedelta(hours=1)
 
     def get_delta_ci(self, cbg_i):
         return self.b_base * (cbg_i / self.cbgs_population)
@@ -119,10 +124,12 @@ def main(info_dir, ipfp_dir, dwell_dir, output_dir):
     n_pois = len(poi_index.index)
     cbgs_population = read_npy(os.path.join(info_dir, "cbg_population_matrix.npy"))
     pois_area = read_npy(os.path.join(info_dir, "poi_area.npy"))
-    weeks = ["2019-01-07"]
     
-    m = Model(cbgs_population, ipfp_dir, dwell_dir, output_dir, n_pois, pois_area, weeks, b_base=0.0126, psi=2700, p_0=0.000495, t_e=96, t_i=84)
-    m.simulate()
+    simulation_start = datetime.datetime(2019, 1, 7, 0)
+    simulation_end = datetime.datetime(2019, 1, 13, 23)
+
+    m = Model(cbgs_population, ipfp_dir, dwell_dir, output_dir, n_pois, pois_area, b_base=0.0126, psi=2700, p_0=0.000495, t_e=96, t_i=84)
+    m.simulate(simulation_start, simulation_end)
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the simulation")
