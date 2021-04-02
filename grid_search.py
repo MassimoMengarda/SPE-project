@@ -3,13 +3,18 @@ from simulation import Model
 import math
 import sys
 
+def converter(x):
+    return datetime.datetime.strptime(x, "%Y-%m-%d")
+
 def main(info_dir, ipfp_dir, dwell_dir, cases_filepath, output_dir):
     poi_index = read_csv(os.path.join(info_dir, "poi_indexes.csv"))
-    cases = read_csv(cases_filepath)
+    cases_df = read_csv(cases_filepath, converters={"date": converter})
+    cases = cases_df.groupby("date").sum()
+    # cases.loc[datetime.datetime(2020,1,21)]
+    
     n_pois = len(poi_index.index)
     cbgs_population = read_npy(os.path.join(info_dir, "cbg_population_matrix.npy"))
     pois_area = read_npy(os.path.join(info_dir, "poi_area.npy"))
-    weeks = ["2019-01-07"] # TODO better implementation
     
     b_base_s = np.linspace(0.0012, 0.024, num=10)
     psi_s = np.linspace(515, 4886, num=15)
@@ -20,10 +25,14 @@ def main(info_dir, ipfp_dir, dwell_dir, cases_filepath, output_dir):
     confirmed_new_cases_proportion = 0.1 # r_c
     n_simulation = 10
     delta_c = 168
+    
+    simulation_start = datetime.datetime(2020, 3, 2, 0)
+    simulation_end = datetime.datetime(2020, 5, 10, 23)
 
     for b_base in b_base_s:
         for psi in psi_s:
             for p_0 in p_0_s:
+                print(f"Computing parameters b_base {b_base} psi {psi} p_0 {p_0}")
                 day_new_cases = [0 for i in 24 + delta_c]
                 rmse_s = []
                 for i in range(n_simulation):
@@ -32,13 +41,14 @@ def main(info_dir, ipfp_dir, dwell_dir, cases_filepath, output_dir):
                     output_dir = os.path.join(output_dir, str(b_base), str(psi), str(p_0))
                     m = Model(cbgs_population, ipfp_dir, dwell_dir, output_dir, n_pois, pois_area, b_base, psi, p_0, t_e=96, t_i=84)
 
-                    for week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive in m.simulate():
-                        day_new_cases.append(np.sum(cbg_i))
+                    for simulation_time, week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive, cbg_new_i in m.simulate(simulation_start, simulation_end):
+                        day_new_cases.append(np.sum(cbg_new_i))
                         day_new_cases.pop(0)
                         
-                        if day_init == True:
+                        if simulation_time.hour == 0:
+                            cases_index = simulation_time - datetime.timedelta(days=1)
                             estimated_confirmed_new_cases = confirmed_new_cases_proportion * np.sum(day_new_cases[0:24])
-                            rmse_sum += (estimated_confirmed_new_cases - certified_new_cases) ** 2
+                            rmse_sum += (estimated_confirmed_new_cases - cases.loc[cases_index]["cases"]) ** 2
                     
                     rmse = math.sqrt(rmse_sum / days_of_simulation)
                     rmse_s.append(rmse)
