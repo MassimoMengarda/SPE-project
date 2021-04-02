@@ -7,12 +7,7 @@ import pandas as pd
 from scipy.sparse import coo
 
 from data_extraction_and_preprocessing.utils import read_csv, read_npy, read_npz
-
-# βbase ranges from 0.0012 to 0.024 => 0.0126
-# ψ ranges from 515 to 4,886 => 2700
-# p0 ranges from 10−5 to 10−2 => 0.000495
-
-# δE = 96 h (refs. 20,58) and δI = 84 h (ref. 20) based
+import datetime
 
 class Model:
     def __init__(self, cbgs_population, ipfp_dir, pois_dwell_dir, output_dir, n_pois, pois_area, weeks, b_base=0.0126, psi=2700, p_0=0.000495, p_dead=0.02, t_e=96, t_i=84):
@@ -33,44 +28,61 @@ class Model:
         self.ipfp_dir = ipfp_dir
         self.output_dir = output_dir
 
-    def simulate(self):
+    def simulate(self, simulation_start_datetime, simulation_end_datetime, save=True, generator=False):
         cbg_e = np.random.binomial(self.cbgs_population, self.p_0)
         cbg_s = self.cbgs_population - cbg_e
         cbg_i = np.zeros((1, self.n_cbgs), dtype=np.int32)
         cbg_r_dead = np.zeros((1, self.n_cbgs), dtype=np.int32)
         cbg_r_alive = np.zeros((1, self.n_cbgs), dtype=np.int32)
         
-        for week in self.weeks:
-            weekly_pois_dwell = read_npy(os.path.join(self.pois_dwell_dir, week + ".npy"))
-            weekly_pois_dwell = np.reshape(weekly_pois_dwell, (weekly_pois_dwell.shape[0], 1))
-            t = 0
-            week_time = 24 * 7
+        # total_t = 0
+        last_week_loaded = datetime.date(1990, 1, 1).date() # Dummy value
+        simulation_time = simulation_start_datetime
+
+        simulation_timedelta = simulation_start_datetime - simulation_end_datetime
+        # total_simulation_time = simulation_timedelta.days * 24 + simulation_timedelta.seconds // 3600
+
+        weekly_pois_dwell = None
+        while simulation_time < simulation_end_datetime:
+            week_num = simulation_time.weekday() #
+            week_start_date = (simulation_time - datetime.timedelta(days=week_num)).date()
+            if week_start_date != last_week_loaded:
+                weekly_pois_dwell = read_npy(os.path.join(self.pois_dwell_dir, week_start_date.strfmt("%Y-%m-%d") + ".npy"))
+                weekly_pois_dwell = np.reshape(weekly_pois_dwell, (weekly_pois_dwell.shape[0], 1))
+                last_week_loaded = week_start_date
             
-            while t < week_time:
-                w_ij = read_npz(os.path.join(self.ipfp_dir, week, "{:0>3d}.npz".format(t)))
+            time_difference_from_week_start = week_start_date - simulation_time
+            week_t = time_difference_from_week_start.days * 24 + time_difference_from_week_start.seconds // 3600
+            week_total_time = 24 * 7
 
-                # Compute the new parameters
-                delta_ci = self.get_delta_ci(cbg_i)
-                delta_pj = self.get_delta_pj(cbg_i, w_ij, weekly_pois_dwell)
+            w_ij = read_npz(os.path.join(self.ipfp_dir, week_start_date.strfmt("%Y-%m-%d"), "{:0>3d}.npz".format(week_t)))
 
-                cbg_new_e = self.get_new_e(cbg_s, delta_pj, delta_ci, w_ij)
-                cbg_new_i = self.get_new_i(cbg_e)
-                cbg_new_r_dead, cbg_new_r_alive = self.get_new_r(cbg_i)
+            # Compute the new parameters
+            delta_ci = self.get_delta_ci(cbg_i)
+            delta_pj = self.get_delta_pj(cbg_i, w_ij, weekly_pois_dwell)
 
-                # Update the current SEIR numbers 
-                cbg_r_dead = cbg_r_dead + cbg_new_r_dead
-                cbg_r_alive = cbg_r_alive + cbg_new_r_alive
-                cbg_i = cbg_i - (cbg_new_r_dead + cbg_new_r_alive) + cbg_new_i
-                cbg_e = cbg_e - cbg_new_i + cbg_new_e
-                cbg_s = cbg_s - cbg_new_e
+            cbg_new_e = self.get_new_e(cbg_s, delta_pj, delta_ci, w_ij)
+            cbg_new_i = self.get_new_i(cbg_e)
+            cbg_new_r_dead, cbg_new_r_alive = self.get_new_r(cbg_i)
 
-                self.save_result(week, t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive)
+            # Update the current SEIR numbers 
+            cbg_r_dead = cbg_r_dead + cbg_new_r_dead
+            cbg_r_alive = cbg_r_alive + cbg_new_r_alive
+            cbg_i = cbg_i - (cbg_new_r_dead + cbg_new_r_alive) + cbg_new_i
+            cbg_e = cbg_e - cbg_new_i + cbg_new_e
+            cbg_s = cbg_s - cbg_new_e
 
-                if not np.any(cbg_e + cbg_i):
-                    print(f"Simulation of week {week} terminanted at hour {t} because there were no more infectious")
-                    break
+            if save:
+                self.save_result(week_start_date, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive)
+                
+            if generator:
+                yield cbg_e, cbg_s, cbg_i, cbg_r_dead, cbg_r_alive, cbg_new_e, cbg_new_i
 
-                t += 1
+            if not np.any(cbg_e + cbg_i):
+                print(f"Simulation of week {week_start_date} terminanted at hour {week_t} because there were no more infectious")
+                break
+            
+            total_t += datetime.timedelta(hours=1)
 
     def get_delta_ci(self, cbg_i):
         return self.b_base * (cbg_i / self.cbgs_population)

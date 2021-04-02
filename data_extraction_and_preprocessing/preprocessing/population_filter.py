@@ -7,7 +7,7 @@ import pandas as pd
 from ..utils import read_csv
 
 def main(input_dir, zip_cbg_filename, output_dir):
-    paths = [(filename, os.path.join(data_directory, filename)) for filename in os.listdir(data_directory) if filename.endswith(".csv") and filename != "cbg_patterns.csv"]
+    paths = [(filename, os.path.join(input_dir, filename)) for filename in os.listdir(input_dir) if filename.endswith(".csv") and filename != "cbg_patterns.csv"]
     fields = read_csv(os.path.join(input_dir, "metadata", "cbg_field_descriptions.csv"))
     df = read_csv(os.path.join(input_dir, "data", "cbg_patterns.csv"), converters={"census_block_group": str})
     zip_code_cbg_map = read_csv(zip_cbg_filename, converters={"zip_code": str, "cbg": str})

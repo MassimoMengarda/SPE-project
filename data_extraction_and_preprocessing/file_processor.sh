@@ -17,14 +17,6 @@ function download_weekly_files() {
     "2019-02-04-weekly-patterns.csv.gz"
     "2019-03-04-weekly-patterns.csv.gz"
     "2019-04-01-weekly-patterns.csv.gz"
-    "2019-05-06-weekly-patterns.csv.gz"
-    "2019-06-03-weekly-patterns.csv.gz"
-    "2019-07-01-weekly-patterns.csv.gz"
-    "2019-08-05-weekly-patterns.csv.gz"
-    "2019-09-02-weekly-patterns.csv.gz"
-    "2019-10-07-weekly-patterns.csv.gz"
-    "2019-11-04-weekly-patterns.csv.gz"
-    "2019-12-02-weekly-patterns.csv.gz"
     )
     for filename in "${files[@]}" ; do
         cmd="aws s3 cp s3://sg-c19-response/weekly-patterns/v2/main-file/$filename $dir/ --profile safegraphws --endpoint https://s3.wasabisys.com"
@@ -60,14 +52,6 @@ function download_home_summary_files() {
     "2019-02-04-home-panel-summary.csv"
     "2019-03-04-home-panel-summary.csv"
     "2019-04-01-home-panel-summary.csv"
-    "2019-05-06-home-panel-summary.csv"
-    "2019-06-03-home-panel-summary.csv"
-    "2019-07-01-home-panel-summary.csv"
-    "2019-08-05-home-panel-summary.csv"
-    "2019-09-02-home-panel-summary.csv"
-    "2019-10-07-home-panel-summary.csv"
-    "2019-11-04-home-panel-summary.csv"
-    "2019-12-02-home-panel-summary.csv"
     )
     for filename in "${files[@]}" ; do
         cmd="aws s3 cp s3://sg-c19-response/weekly-patterns/v2/home-summary-file/$filename $dir/ --profile safegraphws --endpoint https://s3.wasabisys.com"
@@ -86,14 +70,6 @@ function download_social_distancing_files() {
     "2019-02-04"
     "2019-03-04"
     "2019-04-01"
-    "2019-05-06"
-    "2019-06-03"
-    "2019-07-01"
-    "2019-08-05"
-    "2019-09-02"
-    "2019-10-07"
-    "2019-11-04"
-    "2019-12-02"
     )
     for date in "${dates[@]}" ; do
         for i in {0..6} ; do
