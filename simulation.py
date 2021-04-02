@@ -27,7 +27,7 @@ class Model:
         self.ipfp_dir = ipfp_dir
         self.output_dir = output_dir
 
-    def simulate(self, simulation_start_datetime, simulation_end_datetime, save=True, generator=False):
+    def simulate(self, simulation_start_datetime, simulation_end_datetime):
         cbg_e = np.random.binomial(self.cbgs_population, self.p_0)
         cbg_s = self.cbgs_population - cbg_e
         cbg_i = np.zeros((1, self.n_cbgs), dtype=np.int32)
@@ -54,7 +54,6 @@ class Model:
             week_t = time_difference_from_week_start.days * 24 + time_difference_from_week_start.seconds // 3600
             week_total_time = 24 * 7
 
-
             w_ij = read_npz(os.path.join(self.ipfp_dir, week_string, "{:0>3d}.npz".format(week_t)))
 
             # Compute the new parameters
@@ -71,12 +70,8 @@ class Model:
             cbg_i = cbg_i - (cbg_new_r_dead + cbg_new_r_alive) + cbg_new_i
             cbg_e = cbg_e - cbg_new_i + cbg_new_e
             cbg_s = cbg_s - cbg_new_e
-
-            if save:
-                self.save_result(week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive)
                 
-            # if generator:
-            #     yield cbg_e, cbg_s, cbg_i, cbg_r_dead, cbg_r_alive, cbg_new_e, cbg_new_i
+            self.save_result(week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive)
 
             if not np.any(cbg_e + cbg_i):
                 print(f"Simulation of week {week_string} terminanted at hour {week_t} because there were no more infectious")
@@ -120,13 +115,8 @@ def main(info_dir, ipfp_dir, dwell_dir, output_dir):
     cbgs_population = read_npy(os.path.join(info_dir, "cbg_population_matrix.npy"))
     pois_area = read_npy(os.path.join(info_dir, "poi_area.npy"))
     
-<<<<<<< HEAD
-    simulation_start = datetime.datetime(2019, 1, 7, 0)
-    simulation_end = datetime.datetime(2019, 1, 13, 23)
-=======
     simulation_start = datetime.datetime(2019, 1, 7, 0) # TODO pass as arguments
     simulation_end = datetime.datetime(2019, 1, 13, 23) # TODO pass as arguments
->>>>>>> a2f99daefa19930d9a82fa777116827dbca0edb9
 
     m = Model(cbgs_population, ipfp_dir, dwell_dir, output_dir, n_pois, pois_area, b_base=0.0126, psi=2700, p_0=0.000495, t_e=96, t_i=84)
     m.simulate(simulation_start, simulation_end)
@@ -136,7 +126,7 @@ if __name__ == "__main__":
     parser.add_argument("ipfp_directory", type=str, help="the directory where the ipfp matrixes are stored")
     parser.add_argument("info_directory", type=str, help="the directory where the matrixes index are stored")
     parser.add_argument("dwell_directory", type=str, help="the directory where the dwell matrixes are stored")
-    parser.add_argument("output_directory", type=str, help="the directory where store the index result")
+    parser.add_argument("output_directory", type=str, help="the directory where store the result")
     args = parser.parse_args()
     ipfp_dir = args.ipfp_directory
     info_dir = args.info_directory
