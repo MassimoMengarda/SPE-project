@@ -1,7 +1,13 @@
-from simulation import Model
-
+import argparse
+import datetime
 import math
+import os
 import sys
+
+import numpy as np
+
+from data_extraction_and_preprocessing.utils import read_csv, read_npy
+from simulation import Model
 
 def converter(x):
     return datetime.datetime.strptime(x, "%Y-%m-%d")
@@ -9,12 +15,12 @@ def converter(x):
 def main(info_dir, ipfp_dir, dwell_dir, cases_filepath, output_dir):
     poi_index = read_csv(os.path.join(info_dir, "poi_indexes.csv"))
     cases_df = read_csv(cases_filepath, converters={"date": converter})
-    cases = cases_df.groupby("date").sum()
-    # cases.loc[datetime.datetime(2020,1,21)]
-    
+    cases = cases_df.groupby(["date"]).sum()
     n_pois = len(poi_index.index)
     cbgs_population = read_npy(os.path.join(info_dir, "cbg_population_matrix.npy"))
     pois_area = read_npy(os.path.join(info_dir, "poi_area.npy"))
+
+    os.makedirs(output_dir, exist_ok=True)
     
     b_base_s = np.linspace(0.0012, 0.024, num=10)
     psi_s = np.linspace(515, 4886, num=15)
@@ -29,32 +35,49 @@ def main(info_dir, ipfp_dir, dwell_dir, cases_filepath, output_dir):
     simulation_start = datetime.datetime(2020, 3, 2, 0)
     simulation_end = datetime.datetime(2020, 5, 10, 23)
 
+    output_path = os.path.join(output_dir, "rmse_result.csv")
+                    
+    if not os.path.isfile(output_path):
+        with open(output_path, "a") as f_handle:
+            f_handle.write("b_base;psi;p_0;i;rmse\n")
+
     for b_base in b_base_s:
         for psi in psi_s:
             for p_0 in p_0_s:
                 print(f"Computing parameters b_base {b_base} psi {psi} p_0 {p_0}")
-                day_new_cases = [0 for i in 24 + delta_c]
+                day_new_cases = [0 for _ in range(24 + delta_c)]
                 rmse_s = []
                 for i in range(n_simulation):
+                    print(f"Running simulation number {i + 1}")
                     rmse_sum = 0
 
-                    output_dir = os.path.join(output_dir, str(b_base), str(psi), str(p_0))
-                    m = Model(cbgs_population, ipfp_dir, dwell_dir, output_dir, n_pois, pois_area, b_base, psi, p_0, t_e=96, t_i=84)
+                    m = Model(cbgs_population, ipfp_dir, dwell_dir, None, n_pois, pois_area, b_base, psi, p_0, t_e=96, t_i=84)
 
+                    days_of_simulation = 0
                     for simulation_time, week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive, cbg_new_i in m.simulate(simulation_start, simulation_end):
                         day_new_cases.append(np.sum(cbg_new_i))
                         day_new_cases.pop(0)
                         
                         if simulation_time.hour == 0:
                             cases_index = simulation_time - datetime.timedelta(days=1)
+                            if cases_index in cases.index:
+                                certified_new_cases = cases.loc[cases_index]["cases"]
+                            else:
+                                certified_new_cases = 0
                             estimated_confirmed_new_cases = confirmed_new_cases_proportion * np.sum(day_new_cases[0:24])
-                            rmse_sum += (estimated_confirmed_new_cases - cases.loc[cases_index]["cases"]) ** 2
+                            rmse_sum += (estimated_confirmed_new_cases - certified_new_cases) ** 2
+                            days_of_simulation += 1
                     
                     rmse = math.sqrt(rmse_sum / days_of_simulation)
                     rmse_s.append(rmse)
 
+                    with open(output_path, "a") as f_handle:
+                        f_handle.write("{};{};{};{};{}\n".format(b_base, psi_s, p_0, i, rmse))
+                        f_handle.flush()
+
                 average_rmse = sum(rmse_s) / len(rmse_s)
                 print(f"rmse {average_rmse} with b_base {b_base}, psi {psi} p_0 {p_0}")
+
                 if (best_params[0] > average_rmse):
                     best_params = (average_rmse, b_base, psi, p_0)
 
