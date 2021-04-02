@@ -34,18 +34,13 @@ class Model:
         cbg_r_dead = np.zeros((1, self.n_cbgs), dtype=np.int32)
         cbg_r_alive = np.zeros((1, self.n_cbgs), dtype=np.int32)
         
-        # total_t = 0
         last_week_loaded = datetime.datetime(1990, 1, 1).date() # Dummy value
         simulation_time = simulation_start_datetime
-
         simulation_timedelta = simulation_start_datetime - simulation_end_datetime
-        # total_simulation_time = simulation_timedelta.days * 24 + simulation_timedelta.seconds // 3600
-        
-        print(f"simulation_start_datetime {simulation_start_datetime}, simulation_end_datetime {simulation_end_datetime}")
 
         weekly_pois_dwell = None
         while simulation_time < simulation_end_datetime:
-            print(f"simulation_time {simulation_time}")
+            # print(f"simulation_time {simulation_time}")
             week_num = simulation_time.weekday() #
             week_start_date = (simulation_time - datetime.timedelta(days=week_num)).date()
             week_string = week_start_date.strftime("%Y-%m-%d")
@@ -125,8 +120,13 @@ def main(info_dir, ipfp_dir, dwell_dir, output_dir):
     cbgs_population = read_npy(os.path.join(info_dir, "cbg_population_matrix.npy"))
     pois_area = read_npy(os.path.join(info_dir, "poi_area.npy"))
     
+<<<<<<< HEAD
     simulation_start = datetime.datetime(2019, 1, 7, 0)
     simulation_end = datetime.datetime(2019, 1, 13, 23)
+=======
+    simulation_start = datetime.datetime(2019, 1, 7, 0) # TODO pass as arguments
+    simulation_end = datetime.datetime(2019, 1, 13, 23) # TODO pass as arguments
+>>>>>>> a2f99daefa19930d9a82fa777116827dbca0edb9
 
     m = Model(cbgs_population, ipfp_dir, dwell_dir, output_dir, n_pois, pois_area, b_base=0.0126, psi=2700, p_0=0.000495, t_e=96, t_i=84)
     m.simulate(simulation_start, simulation_end)
