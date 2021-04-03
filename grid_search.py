@@ -72,7 +72,7 @@ def main(info_dir, ipfp_dir, dwell_dir, cases_filepath, output_dir):
                     rmse_s.append(rmse)
 
                     with open(output_path, "a") as f_handle:
-                        f_handle.write("{};{};{};{};{}\n".format(b_base, psi_s, p_0, i, rmse))
+                        f_handle.write("{};{};{};{};{}\n".format(b_base, psi, p_0, i, rmse))
                         f_handle.flush()
 
                 average_rmse = sum(rmse_s) / len(rmse_s)

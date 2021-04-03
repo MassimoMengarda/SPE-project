@@ -39,8 +39,8 @@ class Model:
         simulation_time = simulation_start_datetime
         simulation_timedelta = simulation_start_datetime - simulation_end_datetime
 
-        total_io_time = time.timedelta()
-        total_compute_time = time.timedelta()
+        total_io_time = 0
+        total_compute_time = 0
         weekly_pois_dwell = None
         while simulation_time <= simulation_end_datetime:
             # print(f"simulation_time {simulation_time}")
@@ -124,8 +124,8 @@ def main(info_dir, ipfp_dir, dwell_dir, output_dir):
     cbgs_population = read_npy(os.path.join(info_dir, "cbg_population_matrix.npy"))
     pois_area = read_npy(os.path.join(info_dir, "poi_area.npy"))
     
-    simulation_start = datetime.datetime(2019, 1, 7, 0) # TODO pass as arguments
-    simulation_end = datetime.datetime(2019, 1, 13, 23) # TODO pass as arguments
+    simulation_start = datetime.datetime(2020, 3, 2, 0) # TODO pass as arguments
+    simulation_end = datetime.datetime(2020, 3, 8, 23) # TODO pass as arguments
 
     m = Model(cbgs_population, ipfp_dir, dwell_dir, output_dir, n_pois, pois_area, b_base=0.0126, psi=2700, p_0=0.000495, t_e=96, t_i=84)
     for simulation_time, week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive, _ in m.simulate(simulation_start, simulation_end):
