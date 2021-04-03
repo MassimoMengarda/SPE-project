@@ -37,17 +37,17 @@ def main(info_dir, ipfp_dir, dwell_dir, cases_filepath, output_dir):
     simulation_end = datetime.datetime(2020, 5, 10, 23)
     batch = 10
 
-    output_path = os.path.join(output_dir, "rmse_result.csv")
+    output_filepath = os.path.join(output_dir, "rmse_result.csv")
                     
-    if not os.path.isfile(output_path):
-        with open(output_path, "a") as f_handle:
+    if not os.path.isfile(output_filepath):
+        with open(output_filepath, "a") as f_handle:
             f_handle.write("b_base;psi;p_0;rmse\n")
 
     for b_base in b_base_s:
         for psi in psi_s:
             for p_0 in p_0_s:
                 print(f"Computing parameters b_base {b_base} psi {psi} p_0 {p_0}")
-                day_new_cases = [[0 for i in range(batch)] for _ in range(24 + delta_c)]
+                day_new_cases = [[[0] for i in range(batch)] for _ in range(24 + delta_c)]
                 rmse_sum = np.zeros((batch, ), dtype=np.float32)
 
                 m = Model(cbgs_population, ipfp_dir, dwell_dir, None, n_pois, pois_area, b_base, psi, p_0, t_e=96, t_i=84, batch=batch)
@@ -71,7 +71,7 @@ def main(info_dir, ipfp_dir, dwell_dir, cases_filepath, output_dir):
                 average_rmse = np.mean(rmse) # sum(rmse_sum) / rmse_sum.shape[0]
                 print(f"rmse {average_rmse} with b_base {b_base}, psi {psi} p_0 {p_0}")
 
-                with open(output_path, "a") as f_handle:
+                with open(output_filepath, "a") as f_handle:
                     f_handle.write("{};{};{};{}\n".format(b_base, psi, p_0, average_rmse))
                     f_handle.flush()
 
