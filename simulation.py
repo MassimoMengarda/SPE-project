@@ -11,18 +11,20 @@ import datetime
 import time
 
 class Model:
-    def __init__(self, cbgs_population, ipfp_dir, pois_dwell_dir, output_dir, n_pois, pois_area, b_base=0.0126, psi=2700, p_0=0.000495, p_dead=0.02, t_e=96, t_i=84):
+    def __init__(self, cbgs_population, ipfp_dir, pois_dwell_dir, output_dir, n_pois, pois_area, b_base=0.0126, psi=2700, p_0=0.000495, p_dead=0.02, t_e=96, t_i=84, batch=1):
         self.b_base = b_base
         self.psi = psi
         self.p_0 = p_0
         self.p_dead = p_dead
         self.t_e = t_e
         self.t_i = t_i
+        self.batch = batch
         
         self.n_pois = n_pois
-        self.pois_area = np.reshape(pois_area, (pois_area.shape[0], 1))
+        self.pois_area = np.tile(np.reshape(pois_area, (pois_area.shape[0], 1)), (1, self.batch))
         self.n_cbgs = len(cbgs_population)
-        self.cbgs_population = np.reshape(cbgs_population, (1, cbgs_population.shape[0]))
+        # self.cbgs_population = np.reshape(cbgs_population, (1, cbgs_population.shape[0]))
+        self.cbgs_population = np.tile(cbgs_population, (self.batch, 1))
 
         self.pois_dwell_dir = pois_dwell_dir
         self.ipfp_dir = ipfp_dir
@@ -31,9 +33,9 @@ class Model:
     def simulate(self, simulation_start_datetime, simulation_end_datetime):
         cbg_e = np.random.binomial(self.cbgs_population, self.p_0)
         cbg_s = self.cbgs_population - cbg_e
-        cbg_i = np.zeros((1, self.n_cbgs), dtype=np.int32)
-        cbg_r_dead = np.zeros((1, self.n_cbgs), dtype=np.int32)
-        cbg_r_alive = np.zeros((1, self.n_cbgs), dtype=np.int32)
+        cbg_i = np.zeros((self.batch, self.n_cbgs), dtype=np.int32)
+        cbg_r_dead = np.zeros((self.batch, self.n_cbgs), dtype=np.int32)
+        cbg_r_alive = np.zeros((self.batch, self.n_cbgs), dtype=np.int32)
         
         last_week_loaded = datetime.datetime(1990, 1, 1).date() # Dummy value
         simulation_time = simulation_start_datetime
@@ -50,7 +52,7 @@ class Model:
 
             if week_start_date != last_week_loaded:
                 weekly_pois_dwell = read_npy(os.path.join(self.pois_dwell_dir, week_string + ".npy"))
-                weekly_pois_dwell = np.reshape(weekly_pois_dwell, (weekly_pois_dwell.shape[0], 1))
+                weekly_pois_dwell = np.tile(np.reshape(weekly_pois_dwell, (weekly_pois_dwell.shape[0], 1)), (1, self.batch))
                 last_week_loaded = week_start_date
             
             time_difference_from_week_start = simulation_time - datetime.datetime.combine(week_start_date, datetime.datetime.min.time())
@@ -58,7 +60,7 @@ class Model:
             week_total_time = 24 * 7
 
             start_time = time.time()
-            w_ij = read_npz(os.path.join(self.ipfp_dir, week_string, "{:0>3d}.npz".format(week_t)))
+            w_ij = read_npz(os.path.join(self.ipfp_dir, week_string, "{:0>3d}.npz".format(week_t))) # TODO tile?
             total_io_time += time.time() - start_time
 
             start_time = time.time()
@@ -126,9 +128,11 @@ def main(info_dir, ipfp_dir, dwell_dir, output_dir):
     
     simulation_start = datetime.datetime(2020, 3, 2, 0) # TODO pass as arguments
     simulation_end = datetime.datetime(2020, 3, 8, 23) # TODO pass as arguments
+    batch = 2
 
-    m = Model(cbgs_population, ipfp_dir, dwell_dir, output_dir, n_pois, pois_area, b_base=0.0126, psi=2700, p_0=0.000495, t_e=96, t_i=84)
+    m = Model(cbgs_population, ipfp_dir, dwell_dir, output_dir, n_pois, pois_area, b_base=0.0126, psi=2700, p_0=0.000495, t_e=96, t_i=84, batch=batch)
     for simulation_time, week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive, _ in m.simulate(simulation_start, simulation_end):
+        # TODO average batch results
         m.save_result(week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive)
     
 if __name__ == "__main__":
