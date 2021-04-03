@@ -33,6 +33,7 @@ def main(info_dir, ipfp_dir, dwell_dir, cases_filepath, output_dir):
     delta_c = 168
     
     simulation_start = datetime.datetime(2020, 3, 2, 0)
+    # simulation_end = datetime.datetime(2020, 3, 2, 23)
     simulation_end = datetime.datetime(2020, 5, 10, 23)
     batch = 10
 
@@ -46,10 +47,8 @@ def main(info_dir, ipfp_dir, dwell_dir, cases_filepath, output_dir):
         for psi in psi_s:
             for p_0 in p_0_s:
                 print(f"Computing parameters b_base {b_base} psi {psi} p_0 {p_0}")
-                day_new_cases = [0 for _ in range(24 + delta_c)]
-                
-                print(f"Running simulation number {i + 1}")
-                rmse_sum = np.zeros((batch, 1), dtype=np.float32)
+                day_new_cases = [[0 for i in range(batch)] for _ in range(24 + delta_c)]
+                rmse_sum = np.zeros((batch, ), dtype=np.float32)
 
                 m = Model(cbgs_population, ipfp_dir, dwell_dir, None, n_pois, pois_area, b_base, psi, p_0, t_e=96, t_i=84, batch=batch)
 
@@ -64,7 +63,7 @@ def main(info_dir, ipfp_dir, dwell_dir, cases_filepath, output_dir):
                             certified_new_cases = cases.loc[cases_index]["cases"]
                         else:
                             certified_new_cases = 0
-                        estimated_confirmed_new_cases = confirmed_new_cases_proportion * np.sum(day_new_cases[0:24], axis=1)
+                        estimated_confirmed_new_cases = confirmed_new_cases_proportion * np.sum(np.asarray(day_new_cases[0:24]), axis=0)
                         rmse_sum = rmse_sum + (estimated_confirmed_new_cases - certified_new_cases) ** 2 
                         days_of_simulation += 1
                 

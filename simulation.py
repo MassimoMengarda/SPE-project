@@ -92,7 +92,7 @@ class Model:
             simulation_time += datetime.timedelta(hours=1)
         print("Compute time: {}, IO Time: {}".format(total_compute_time, total_io_time))
 
-    def get_delta_ci(self, cbg_i): # TODO check if broadcast works
+    def get_delta_ci(self, cbg_i):
         return self.b_base * (cbg_i / self.cbgs_population)
 
     def get_delta_pj(self, cbg_i, w_ij, weekly_pois_area_ratio):
@@ -102,8 +102,8 @@ class Model:
         return delta_pj
 
     def get_new_e(self, cbg_s, delta_pj, delta_ci, w_ij):
-        poisson_args = np.empty((self.batch, cbg_s.shape[0], cbg_s.shape[1]), dtype=np.float32)
-        for batch in range(self.batch): # TODO check cbg_s[batch] / self.cbgs_population
+        poisson_args = np.empty_like(cbg_s)
+        for batch in range(self.batch):
             poisson_args[batch] = np.multiply((cbg_s[batch] / self.cbgs_population), w_ij.multiply(delta_pj[batch]).sum(axis=0))
         poisson = np.random.poisson(self.psi * poisson_args)
         binom = np.random.binomial(cbg_s, delta_ci)
@@ -135,12 +135,13 @@ def main(info_dir, ipfp_dir, dwell_dir, output_dir):
     pois_area = read_npy(os.path.join(info_dir, "poi_area.npy"))
     
     simulation_start = datetime.datetime(2020, 3, 2, 0) # TODO pass as arguments
-    simulation_end = datetime.datetime(2020, 3, 8, 23) # TODO pass as arguments
-    batch = 2
+    simulation_end = datetime.datetime(2020, 3, 2, 23) # TODO pass as arguments
+    batch = 10
 
     m = Model(cbgs_population, ipfp_dir, dwell_dir, output_dir, n_pois, pois_area, b_base=0.0126, psi=2700, p_0=0.000495, t_e=96, t_i=84, batch=batch)
     for simulation_time, week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive, _ in m.simulate(simulation_start, simulation_end):
         # TODO average batch results
+        print(f"week_string {week_string}, week_t {week_t}")
         # m.save_result(week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive)
     
 if __name__ == "__main__":
