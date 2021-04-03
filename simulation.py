@@ -8,6 +8,7 @@ from scipy.sparse import coo
 
 from data_extraction_and_preprocessing.utils import read_csv, read_npy, read_npz
 import datetime
+import time
 
 class Model:
     def __init__(self, cbgs_population, ipfp_dir, pois_dwell_dir, output_dir, n_pois, pois_area, b_base=0.0126, psi=2700, p_0=0.000495, p_dead=0.02, t_e=96, t_i=84):
@@ -38,6 +39,8 @@ class Model:
         simulation_time = simulation_start_datetime
         simulation_timedelta = simulation_start_datetime - simulation_end_datetime
 
+        total_io_time = time.timedelta()
+        total_compute_time = time.timedelta()
         weekly_pois_dwell = None
         while simulation_time <= simulation_end_datetime:
             # print(f"simulation_time {simulation_time}")
@@ -54,8 +57,11 @@ class Model:
             week_t = time_difference_from_week_start.days * 24 + time_difference_from_week_start.seconds // 3600
             week_total_time = 24 * 7
 
+            start_time = time.time()
             w_ij = read_npz(os.path.join(self.ipfp_dir, week_string, "{:0>3d}.npz".format(week_t)))
+            total_io_time += time.time() - start_time
 
+            start_time = time.time()
             # Compute the new parameters
             delta_ci = self.get_delta_ci(cbg_i)
             delta_pj = self.get_delta_pj(cbg_i, w_ij, weekly_pois_dwell)
@@ -71,6 +77,8 @@ class Model:
             cbg_e = cbg_e - cbg_new_i + cbg_new_e
             cbg_s = cbg_s - cbg_new_e
 
+            total_compute_time += time.time() - start_time
+
             yield simulation_time, week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive, cbg_new_i
 
             if not np.any(cbg_e + cbg_i):
@@ -78,6 +86,7 @@ class Model:
                 break
             
             simulation_time += datetime.timedelta(hours=1)
+        print("Compute time: {}, IO Time: {}".format(total_compute_time, total_io_time))
 
     def get_delta_ci(self, cbg_i):
         return self.b_base * (cbg_i / self.cbgs_population)
