@@ -18,24 +18,25 @@ class Model:
         self.p_dead = p_dead
         self.t_e = t_e
         self.t_i = t_i
-        self.batch = batch
         
         self.n_pois = n_pois
-        self.pois_area = np.tile(np.reshape(pois_area, (pois_area.shape[0], 1)), (1, self.batch))
+        self.pois_area = np.reshape(pois_area, (pois_area.shape[0], 1))
         self.n_cbgs = len(cbgs_population)
-        # self.cbgs_population = np.reshape(cbgs_population, (1, cbgs_population.shape[0]))
-        self.cbgs_population = np.tile(cbgs_population, (self.batch, 1))
+        self.cbgs_population = np.reshape(cbgs_population, (1, cbgs_population.shape[0]))
+        # self.cbgs_population = cbgs_population
 
         self.pois_dwell_dir = pois_dwell_dir
         self.ipfp_dir = ipfp_dir
         self.output_dir = output_dir
+        self.batch = batch
 
     def simulate(self, simulation_start_datetime, simulation_end_datetime):
-        cbg_e = np.random.binomial(self.cbgs_population, self.p_0)
-        cbg_s = self.cbgs_population - cbg_e
-        cbg_i = np.zeros((self.batch, self.n_cbgs), dtype=np.int32)
-        cbg_r_dead = np.zeros((self.batch, self.n_cbgs), dtype=np.int32)
-        cbg_r_alive = np.zeros((self.batch, self.n_cbgs), dtype=np.int32)
+        cbgs_population_repeated = np.tile(self.cbgs_population[np.newaxis, :, :], (self.batch, 1, 1))
+        cbg_e = np.random.binomial(cbgs_population_repeated, self.p_0)
+        cbg_s = cbgs_population_repeated - cbg_e
+        cbg_i = np.zeros((self.batch, 1, self.n_cbgs), dtype=np.int32)
+        cbg_r_dead = np.zeros((self.batch, 1, self.n_cbgs), dtype=np.int32)
+        cbg_r_alive = np.zeros((self.batch, 1, self.n_cbgs), dtype=np.int32)
         
         last_week_loaded = datetime.datetime(1990, 1, 1).date() # Dummy value
         simulation_time = simulation_start_datetime
@@ -52,7 +53,8 @@ class Model:
 
             if week_start_date != last_week_loaded:
                 weekly_pois_dwell = read_npy(os.path.join(self.pois_dwell_dir, week_string + ".npy"))
-                weekly_pois_dwell = np.tile(np.reshape(weekly_pois_dwell, (weekly_pois_dwell.shape[0], 1)), (1, self.batch))
+                weekly_pois_dwell = np.reshape(weekly_pois_dwell, (weekly_pois_dwell.shape[0], 1))
+                weekly_pois_area_ratio = np.square(weekly_pois_dwell) / self.pois_area
                 last_week_loaded = week_start_date
             
             time_difference_from_week_start = simulation_time - datetime.datetime.combine(week_start_date, datetime.datetime.min.time())
@@ -66,7 +68,7 @@ class Model:
             start_time = time.time()
             # Compute the new parameters
             delta_ci = self.get_delta_ci(cbg_i)
-            delta_pj = self.get_delta_pj(cbg_i, w_ij, weekly_pois_dwell)
+            delta_pj = self.get_delta_pj(cbg_i, w_ij, weekly_pois_area_ratio)
 
             cbg_new_e = self.get_new_e(cbg_s, delta_pj, delta_ci, w_ij)
             cbg_new_i = self.get_new_i(cbg_e)
@@ -90,14 +92,20 @@ class Model:
             simulation_time += datetime.timedelta(hours=1)
         print("Compute time: {}, IO Time: {}".format(total_compute_time, total_io_time))
 
-    def get_delta_ci(self, cbg_i):
+    def get_delta_ci(self, cbg_i): # TODO check if broadcast works
         return self.b_base * (cbg_i / self.cbgs_population)
 
-    def get_delta_pj(self, cbg_i, w_ij, weekly_pois_dwell):
-        return np.multiply((np.square(weekly_pois_dwell) / self.pois_area), w_ij.multiply(cbg_i / self.cbgs_population).sum(axis=1))
+    def get_delta_pj(self, cbg_i, w_ij, weekly_pois_area_ratio):
+        delta_pj = np.empty((self.batch, weekly_pois_area_ratio.shape[0], weekly_pois_area_ratio.shape[1]), dtype=np.float32)
+        for batch in range(self.batch):
+            delta_pj[batch] = np.multiply(weekly_pois_area_ratio, w_ij.multiply(cbg_i[batch] / self.cbgs_population).sum(axis=1))
+        return delta_pj
 
     def get_new_e(self, cbg_s, delta_pj, delta_ci, w_ij):
-        poisson = np.random.poisson(self.psi * np.multiply((cbg_s / self.cbgs_population), w_ij.multiply(delta_pj).sum(axis=0)))
+        poisson_args = np.empty((self.batch, cbg_s.shape[0], cbg_s.shape[1]), dtype=np.float32)
+        for batch in range(self.batch): # TODO check cbg_s[batch] / self.cbgs_population
+            poisson_args[batch] = np.multiply((cbg_s[batch] / self.cbgs_population), w_ij.multiply(delta_pj[batch]).sum(axis=0))
+        poisson = np.random.poisson(self.psi * poisson_args)
         binom = np.random.binomial(cbg_s, delta_ci)
         return np.minimum(cbg_s, poisson + binom) # TODO check if it is correct
 
@@ -133,7 +141,7 @@ def main(info_dir, ipfp_dir, dwell_dir, output_dir):
     m = Model(cbgs_population, ipfp_dir, dwell_dir, output_dir, n_pois, pois_area, b_base=0.0126, psi=2700, p_0=0.000495, t_e=96, t_i=84, batch=batch)
     for simulation_time, week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive, _ in m.simulate(simulation_start, simulation_end):
         # TODO average batch results
-        m.save_result(week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive)
+        # m.save_result(week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive)
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the simulation")
