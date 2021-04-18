@@ -5,6 +5,7 @@ from datetime import datetime
 
 import numpy as np
 import pandas as pd
+import torch
 # https://pypi.org/project/pyshp/
 import shapefile
 from scipy.sparse import load_npz
@@ -56,3 +57,14 @@ def read_shapefile(filepath):
         sys.exit(f"{filepath} is not a valid shape file")
     print("Reading shape file", filepath)
     return shapefile.Reader(filepath)
+
+def coo_to_tensor(coo):
+    values = coo.data
+    indices = np.vstack((coo.row, coo.col))
+
+    i = torch.tensor(indices)
+    v = torch.tensor(values)
+    shape = coo.shape
+
+    return torch.sparse_coo_tensor(i, v, list(shape))
+    # torch.Size(shape)

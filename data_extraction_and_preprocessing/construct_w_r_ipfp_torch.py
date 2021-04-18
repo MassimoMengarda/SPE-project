@@ -13,8 +13,6 @@ from utils import (JSONParser, get_dates_from_input_dir, read_csv, read_npy,
 
 from joblib import Parallel, delayed
 
-import torch
-
 def ipfp_hour(aggregate_visits_w, cbg_marginals_u, poi_marginal_v, number_of_iterations=100):
     last_w = aggregate_visits_w
     
@@ -58,26 +56,12 @@ def main(aggregate_visit_matrix_dir, cbg_marginals_dir, poi_marginals_dir, outpu
 
         day_dir = os.path.join(output_dir, day)
         os.makedirs(day_dir, exist_ok=True)
-        cbg_marginals_u_t_np = read_npy(cbg_marginal_filepath)
-        poi_marginal_v_t_coo = read_npz(poi_marginal_filepath)
-
-        cbg_marginals_u_t = torch.from_numpy(cbg_marginals_u_t_np)
-        poi_marginal_v_t = coo_to_tensor(poi_marginal_v_t_coo)
-
-        print(cbg_marginals_u_t.shape)
-        print(poi_marginal_v_t.shape)
-
-
-        # [item[0] for item in your_list]
+        cbg_marginals_u_t = read_npy(cbg_marginal_filepath)
+        poi_marginal_v_t = read_npz(poi_marginal_filepath)
         
-        """
         Parallel(n_jobs=4)(
-            (delayed(ipfp)(day, hour, aggregate_visits_w, cbg_marginals_u_t[:, hour], poi_marginal_v_t[:, hour], day_dir) for hour in range(cbg_marginals_u_t.shape[1]))
+            (delayed(ipfp)(day, hour, aggregate_visits_w, cbg_marginals_u_t[:, hour], poi_marginal_v_t.getcol(hour), day_dir) for hour in range(cbg_marginals_u_t.shape[1]))
         )
-        """
-
-        for hour in range(cbg_marginals_u_t.shape[1]):
-            ipfp(day, hour, aggregate_visits_w, cbg_marginals_u_t[:, hour], poi_marginal_v_t[:, hour], day_dir)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Construct the v_pj(t) matrixes, one for each week considered")
