@@ -5,11 +5,9 @@ from datetime import datetime
 
 import numpy as np
 import pandas as pd
-import torch
 # https://pypi.org/project/pyshp/
 import shapefile
-from scipy.sparse import load_npz
-
+from scipy.sparse import csr_matrix, load_npz
 
 def get_dates_from_input_dir(input_dir, extension=".csv"):
     result = []
@@ -50,21 +48,13 @@ def read_npz(filepath):
     if not os.path.isfile(filepath):
         sys.exit(f"{filepath} is not a valid NPZ file")
     print("Reading NPZ file", filepath)
-    return load_npz(filepath)
+    result = load_npz(filepath)
+    if type(result) is csr_matrix:
+        result = result.tocoo()
+    return result
 
 def read_shapefile(filepath):
     if not os.path.isfile(filepath + ".shp"):
         sys.exit(f"{filepath} is not a valid shape file")
     print("Reading shape file", filepath)
     return shapefile.Reader(filepath)
-
-def coo_to_tensor(coo):
-    values = coo.data
-    indices = np.vstack((coo.row, coo.col))
-
-    i = torch.tensor(indices)
-    v = torch.tensor(values)
-    shape = coo.shape
-
-    return torch.sparse_coo_tensor(i, v, list(shape))
-    # torch.Size(shape)
