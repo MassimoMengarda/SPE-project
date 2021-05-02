@@ -27,10 +27,6 @@ def main(simulation_parameters_filepath, info_dir, ipfp_dir, dwell_dir, cases_fi
 
         os.makedirs(output_dir, exist_ok=True)
         
-        b_base_s = np.linspace(0.0012, 0.024, num=10)
-        psi_s = np.linspace(515, 4886, num=15)
-        p_0_s = [1e-2, 5e-3, 2e-3, 1e-3, 5e-4, 2e-4, 1e-4, 5e-5, 2e-5, 1e-5]
-
         best_params = (sys.float_info.max, -1, -1, -1)
 
         confirmed_new_cases_proportion = 0.1 # r_c
