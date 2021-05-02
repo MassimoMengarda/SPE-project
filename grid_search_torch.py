@@ -46,16 +46,39 @@ def main(simulation_parameters_filepath, info_dir, ipfp_dir, dwell_dir, cases_fi
         
         parameters_df = pd.read_csv(simulation_parameters_filepath)
 
+        rows_per_simulation = 2
+        current_rows = 1
+        b_bases = []
+        psis = []
+        p_0s = []
+
+        b_bases_batch = []
+        psis_batch = []
+        p_0s_batch = []
         for i, line in parameters_df.iterrows():
-            b_base = line["b_base"]
-            psi = line["psi"]
-            p_0 = line["p_0"]
+            if current_rows <= rows_per_simulation:
+                b_bases.extend([line["b_base"] for i in range(batch)])
+                psis.extend([line["psi"] for i in range(batch)])
+                p_0s.extend([line["p_0"] for i in range(batch)])
+                
+                b_bases_batch.append(line["b_base"])
+                psis_batch.append(line["psi"])
+                p_0s_batch.append(line["p_0"])
+                current_rows += 1
+
+                if current_rows != rows_per_simulation:
+                    continue
+            
+            b_bases_torch = torch.FloatTensor(b_bases).cuda()
+            psis_torch = torch.FloatTensor(psis).cuda()
+            p_0s_torch = torch.FloatTensor(p_0s).cuda()
+            current_rows = 1
 
             print(f"Computing parameters b_base {b_base} psi {psi} p_0 {p_0}")
             day_new_cases = [[[0] for i in range(batch)] for _ in range(24 + delta_c)]
             rmse_sum = torch.zeros((batch, ), dtype=torch.float32)
 
-            m = Model(cbgs_population, ipfp_dir, dwell_dir, None, n_pois, pois_area, b_base, psi, p_0, t_e=96, t_i=84, batch=batch)
+            m = Model(cbgs_population, ipfp_dir, dwell_dir, None, n_pois, pois_area, b_bases_torch, psis_torch, p_0s_torch, t_e=96, t_i=84, batch=rows_per_simulation * batch)
 
             days_of_simulation = 0
             for simulation_time, week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive, cbg_new_i in m.simulate(simulation_start, simulation_end):
@@ -73,15 +96,19 @@ def main(simulation_parameters_filepath, info_dir, ipfp_dir, dwell_dir, cases_fi
                     days_of_simulation += 1
             
             rmse = np.sqrt(rmse_sum / days_of_simulation)
-            average_rmse = np.average(rmse) # sum(rmse_sum) / rmse_sum.shape[0]
-            print(f"rmse {average_rmse} with b_base {b_base}, psi {psi} p_0 {p_0}")
-
+            rmse_for_parameters = np.split(rmse, rows_per_simulation) 
+            
+            print(rmse_for_parameters)
             with open(output_filepath, "a") as f_handle:
-                f_handle.write("{};{};{};{}\n".format(b_base, psi, p_0, average_rmse))
-                f_handle.flush()
+                for idx, single_rmse in enumerate(rmse_for_parameters):
+                    average_rmse = np.average(rmse) # sum(rmse_sum) / rmse_sum.shape[0]
+                    print(f"rmse {average_rmse} with b_base {b_bases_batch[idx]}, psi {psis_batch[idx]} p_0 {p_0s_batch[idx]}")
+                    
+                    f_handle.write("{};{};{};{}\n".format(b_bases_batch[idx], psis_batch[idx], p_0_batch[idx], average_rmse))
+                    f_handle.flush()
 
-            if (best_params[0] > average_rmse):
-                best_params = (average_rmse, b_base, psi, p_0)
+                    if (best_params[0] > average_rmse):
+                        best_params = (average_rmse, b_base, psi, p_0)
 
         print("FINAL RESULT: ", best_params)
 

@@ -23,10 +23,10 @@ def sparse_dense_vector_mul(s, d):
     return torch.sparse_coo_tensor(i, v * dv, s.size(), device=s.device).coalesce()
 
 class Model:
-    def __init__(self, cbgs_population, ipfp_dir, pois_dwell_dir, output_dir, n_pois, pois_area, b_base=0.0126, psi=2700, p_0=0.000495, p_dead=0.02, t_e=96, t_i=84, batch=1):
-        self.b_base = b_base
-        self.psi = psi
-        self.p_0 = p_0
+    def __init__(self, cbgs_population, ipfp_dir, pois_dwell_dir, output_dir, n_pois, pois_area, b_bases=[0.0126], psis=[2700], p_0s=[0.000495], p_dead=0.02, t_e=96, t_i=84, batch=1):
+        self.b_bases = b_bases
+        self.psis = psis
+        self.p_0s = p_0s
         self.p_dead = p_dead
         self.t_e = t_e
         self.t_i = t_i
@@ -44,7 +44,9 @@ class Model:
 
     def simulate(self, simulation_start_datetime, simulation_end_datetime):
         cbgs_population_repeated = torch.tile(self.cbgs_population[None, :, :], (self.batch, 1, 1))
-        cbg_e = torch.binomial(count=cbgs_population_repeated.float(), prob=torch.full(cbgs_population_repeated.shape, self.p_0, dtype=torch.float32, device='cuda'))
+        probs_cbg_e = torch.tile(self.p_0s[:, None, None], (1, cbgs_population_repeated.shape[1], cbgs_population_repeated.shape[2]))
+        
+        cbg_e = torch.binomial(count=cbgs_population_repeated.float(), prob=probs_cbg_e)
         cbg_s = cbgs_population_repeated - cbg_e
         cbg_i = torch.zeros((self.batch, 1, self.n_cbgs), dtype=torch.float32, device='cuda')
         cbg_r_dead = torch.zeros((self.batch, 1, self.n_cbgs), dtype=torch.float32, device='cuda')
@@ -107,7 +109,7 @@ class Model:
         print("Compute time: {}, IO Time: {}".format(total_compute_time, total_io_time))
 
     def get_delta_ci(self, cbg_i):
-        return self.b_base * (cbg_i / self.cbgs_population)
+        return self.b_bases * (cbg_i / self.cbgs_population)
 
     def get_delta_pj(self, cbg_i, w_ij, weekly_pois_area_ratio):
         delta_pj = torch.empty((self.batch, weekly_pois_area_ratio.shape[0], weekly_pois_area_ratio.shape[1]), dtype=torch.float32, device='cuda')
@@ -119,7 +121,7 @@ class Model:
         poisson_args = torch.empty_like(cbg_s)
         for batch in range(self.batch):
             poisson_args[batch] = torch.multiply((cbg_s[batch] / self.cbgs_population), torch.sparse.sum(sparse_dense_vector_mul(w_ij, delta_pj[batch]), dim=0).to_dense())
-        poisson = torch.poisson(self.psi * poisson_args)
+        poisson = torch.poisson(self.psis * poisson_args)
         binom = torch.binomial(count=cbg_s, prob=delta_ci)
         return torch.minimum(cbg_s, poisson + binom) # TODO check if it is correct
 
@@ -159,7 +161,11 @@ def main(info_dir, ipfp_dir, dwell_dir, output_dir):
         simulation_end = datetime.datetime(2020, 3, 2, 23) # TODO pass as arguments
         batch = 10
 
-        m = Model(cbgs_population, ipfp_dir, dwell_dir, output_dir, n_pois, pois_area, b_base=0.0126, psi=2700, p_0=0.000495, t_e=96, t_i=84, batch=batch)
+        b_bases = torch.full((batch,), 0.0126, device='cuda')
+        psis = torch.full((batch,), 2700, device='cuda')
+        p_0s = torch.full((batch,), 0.000495, device='cuda')
+
+        m = Model(cbgs_population, ipfp_dir, dwell_dir, output_dir, n_pois, pois_area, b_bases=b_bases, psis=psis, p_0s=p_0s, t_e=96, t_i=84, batch=batch)
         for simulation_time, week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive, _ in m.simulate(simulation_start, simulation_end):
             # TODO average batch results
             print(f"week_string {week_string}, week_t {week_t}")
