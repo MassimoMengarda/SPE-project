@@ -17,13 +17,16 @@ def main(info_dir, ipfp_dir, dwell_dir, cases_filepath, output_dir):
     cases_df = read_csv(cases_filepath, converters={"date": converter})
     cases = cases_df.groupby(["date"]).sum()
     n_pois = len(poi_index.index)
-    cbgs_population = read_npy(os.path.join(info_dir, "cbg_population_matrix.npy"))
+    cbgs_population_np = read_npy(os.path.join(info_dir, "cbg_population_matrix.npy"))
+    cbgs_population = torch.from_numpy(cbgs_population_np).cuda().float()
     pois_area = read_npy(os.path.join(info_dir, "poi_area.npy"))
+    pois_area = torch.from_numpy(pois_area).cuda()
+
 
     os.makedirs(output_dir, exist_ok=True)
     
-    b_base_s = np.linspace(0.0012, 0.024, num=10)
-    psi_s = np.linspace(515, 4886, num=15)
+    b_base_s = torch.linspace(0.0012, 0.024, num=10)
+    psi_s = torch.linspace(515, 4886, num=15)
     p_0_s = [1e-2, 5e-3, 2e-3, 1e-3, 5e-4, 2e-4, 1e-4, 5e-5, 2e-5, 1e-5]
 
     best_params = (sys.float_info.max, -1, -1, -1)

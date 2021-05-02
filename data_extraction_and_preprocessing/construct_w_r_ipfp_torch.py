@@ -18,11 +18,15 @@ import time
 
 import torch
 
-def sparse_dense_mul(s, d):
-  i = s.indices()
-  v = s.values()
-  dv = d[i[0,:], i[1,:]]  # get values from relevant entries of dense matrix
-  return torch.sparse_coo_tensor(i, v * dv, s.size()).coalesce()
+def sparse_dense_vector_mul(s, d):
+    i = s.indices()
+    v = s.values()
+    # get values from relevant entries of dense matrix
+    if d.shape[0] != 1:
+        dv = d[i[0,:], 0]
+    else:
+        dv = d[0, i[1,:]]
+    return torch.sparse_coo_tensor(i, v * dv, s.size(), device=s.device).coalesce()
 
 def coo_get_col_to_dense(coo, col_index):
     mask = coo.indices()[1, :] == col_index
@@ -48,13 +52,13 @@ def ipfp_hour(aggregate_visits_w, cbg_marginals_u, poi_marginal_v, number_of_ite
             last_w_axis_sum[last_w_axis_sum < sys.float_info.epsilon] = 1.0
             alfa_i = cbg_marginals_u / last_w_axis_sum
             alfa_i = torch.reshape(alfa_i, (1, alfa_i.shape[0]))
-            new_w = sparse_dense_mul(last_w, torch.broadcast_to(alfa_i, last_w.shape))
+            new_w = sparse_dense_vector_mul(last_w, alfa_i)
         else:
             last_w_axis_sum = torch.sparse.sum(last_w, dim=1).to_dense()
             last_w_axis_sum[last_w_axis_sum < sys.float_info.epsilon] = 1.0
             last_w_axis_sum = torch.reshape(last_w_axis_sum, (last_w_axis_sum.shape[0], 1))
             alfa_j = poi_marginal_v / last_w_axis_sum
-            new_w = sparse_dense_mul(last_w, torch.broadcast_to(alfa_j, last_w.shape))
+            new_w = sparse_dense_vector_mul(last_w, alfa_j)
         last_w = new_w
     return last_w
 
@@ -65,7 +69,7 @@ def ipfp(day, hour, aggregate_visits_w, cbg_marginals_u, poi_marginal_v, day_dir
     print("Hour compute time: %s" % (time.time() - start_time))
     w_matrix_filename = os.path.join(day_dir, "{:0>3d}.pth".format(hour))
     print("Saving torch COO ", w_matrix_filename)
-    torch.save(w_sparse_matrix, w_matrix_filename)
+    torch.save(w_sparse_matrix.cpu(), w_matrix_filename)
 
 def main(aggregate_visit_matrix_dir, cbg_marginals_dir, poi_marginals_dir, output_dir, no_weeks=None):    
     if not torch.cuda.is_available():
