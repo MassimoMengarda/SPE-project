@@ -34,7 +34,7 @@ class Model:
         self.n_pois = n_pois
         self.pois_area = torch.reshape(pois_area, (pois_area.shape[0], 1))
         self.n_cbgs = cbgs_population.shape[0]
-        self.cbgs_population = torch.reshape(cbgs_population, (1, cbgs_population.shape[0]))
+        self.cbgs_population = torch.reshape(cbgs_population, (1, 1, cbgs_population.shape[0]))
         # self.cbgs_population = cbgs_population
 
         self.pois_dwell_dir = pois_dwell_dir
@@ -43,9 +43,9 @@ class Model:
         self.batch = batch
 
     def simulate(self, simulation_start_datetime, simulation_end_datetime):
-        cbgs_population_repeated = torch.tile(self.cbgs_population[None, :, :], (self.batch, 1, 1))
+        cbgs_population_repeated = torch.tile(self.cbgs_population, (self.batch, 1, 1))
         probs_cbg_e = torch.tile(self.p_0s[:, None, None], (1, cbgs_population_repeated.shape[1], cbgs_population_repeated.shape[2]))
-        
+
         cbg_e = torch.binomial(count=cbgs_population_repeated.float(), prob=probs_cbg_e)
         cbg_s = cbgs_population_repeated - cbg_e
         cbg_i = torch.zeros((self.batch, 1, self.n_cbgs), dtype=torch.float32, device='cuda')
@@ -109,19 +109,19 @@ class Model:
         print("Compute time: {}, IO Time: {}".format(total_compute_time, total_io_time))
 
     def get_delta_ci(self, cbg_i):
-        return self.b_bases * (cbg_i / self.cbgs_population)
+        return self.b_bases[:, None, None] * torch.div(cbg_i, self.cbgs_population)
 
     def get_delta_pj(self, cbg_i, w_ij, weekly_pois_area_ratio):
         delta_pj = torch.empty((self.batch, weekly_pois_area_ratio.shape[0], weekly_pois_area_ratio.shape[1]), dtype=torch.float32, device='cuda')
         for batch in range(self.batch):
-            delta_pj[batch] = torch.multiply(weekly_pois_area_ratio, torch.sparse.sum(sparse_dense_vector_mul(w_ij, cbg_i[batch] / self.cbgs_population), dim=1).to_dense()[:, None])
+            delta_pj[batch] = torch.multiply(weekly_pois_area_ratio, torch.sparse.sum(sparse_dense_vector_mul(w_ij, cbg_i[batch] / self.cbgs_population[0]), dim=1).to_dense()[:, None])
         return delta_pj
 
     def get_new_e(self, cbg_s, delta_pj, delta_ci, w_ij):
         poisson_args = torch.empty_like(cbg_s)
         for batch in range(self.batch):
             poisson_args[batch] = torch.multiply((cbg_s[batch] / self.cbgs_population), torch.sparse.sum(sparse_dense_vector_mul(w_ij, delta_pj[batch]), dim=0).to_dense())
-        poisson = torch.poisson(self.psis * poisson_args)
+        poisson = torch.poisson(self.psis[:, None, None] * poisson_args)
         binom = torch.binomial(count=cbg_s, prob=delta_ci)
         return torch.minimum(cbg_s, poisson + binom) # TODO check if it is correct
 

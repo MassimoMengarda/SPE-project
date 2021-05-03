@@ -57,32 +57,35 @@ def main(simulation_parameters_filepath, info_dir, ipfp_dir, dwell_dir, cases_fi
         p_0s_batch = []
         for i, line in parameters_df.iterrows():
             if current_rows <= rows_per_simulation:
+                # print("Add")
                 b_bases.extend([line["b_base"] for i in range(batch)])
                 psis.extend([line["psi"] for i in range(batch)])
                 p_0s.extend([line["p_0"] for i in range(batch)])
+
+                print("Computing parameters b_base {} psi {} p_0 {}".format(line["b_base"], line["psi"], line["p_0"]))
                 
                 b_bases_batch.append(line["b_base"])
                 psis_batch.append(line["psi"])
                 p_0s_batch.append(line["p_0"])
-                current_rows += 1
 
                 if current_rows != rows_per_simulation:
+                    current_rows += 1
                     continue
             
             b_bases_torch = torch.FloatTensor(b_bases).cuda()
             psis_torch = torch.FloatTensor(psis).cuda()
             p_0s_torch = torch.FloatTensor(p_0s).cuda()
-            current_rows = 1
-
-            print(f"Computing parameters b_base {b_base} psi {psi} p_0 {p_0}")
-            day_new_cases = [[[0] for i in range(batch)] for _ in range(24 + delta_c)]
-            rmse_sum = torch.zeros((batch, ), dtype=torch.float32)
+            
+            day_new_cases = [[[0] for i in range(batch * rows_per_simulation)] for _ in range(24 + delta_c)]
+            rmse_sum = torch.zeros((batch * rows_per_simulation, ), dtype=torch.float32)
 
             m = Model(cbgs_population, ipfp_dir, dwell_dir, None, n_pois, pois_area, b_bases_torch, psis_torch, p_0s_torch, t_e=96, t_i=84, batch=rows_per_simulation * batch)
 
             days_of_simulation = 0
             for simulation_time, week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive, cbg_new_i in m.simulate(simulation_start, simulation_end):
                 day_new_cases.pop(0)
+                # print(cbg_new_i.shape)
+                # print(torch.sum(cbg_new_i, axis=2).shape)
                 day_new_cases.append(torch.sum(cbg_new_i, axis=2).cpu().numpy()) # TODO check size (10, 1, 140k)
                 
                 if simulation_time.hour == 0:
@@ -96,19 +99,28 @@ def main(simulation_parameters_filepath, info_dir, ipfp_dir, dwell_dir, cases_fi
                     days_of_simulation += 1
             
             rmse = np.sqrt(rmse_sum / days_of_simulation)
-            rmse_for_parameters = np.split(rmse, rows_per_simulation) 
-            
-            print(rmse_for_parameters)
+            rmse_for_parameters = np.split(rmse, rows_per_simulation)
+
             with open(output_filepath, "a") as f_handle:
                 for idx, single_rmse in enumerate(rmse_for_parameters):
-                    average_rmse = np.average(rmse) # sum(rmse_sum) / rmse_sum.shape[0]
+                    average_rmse = np.average(single_rmse) # sum(rmse_sum) / rmse_sum.shape[0]
                     print(f"rmse {average_rmse} with b_base {b_bases_batch[idx]}, psi {psis_batch[idx]} p_0 {p_0s_batch[idx]}")
                     
-                    f_handle.write("{};{};{};{}\n".format(b_bases_batch[idx], psis_batch[idx], p_0_batch[idx], average_rmse))
+                    f_handle.write("{};{};{};{}\n".format(b_bases_batch[idx], psis_batch[idx], p_0s_batch[idx], average_rmse))
                     f_handle.flush()
 
                     if (best_params[0] > average_rmse):
-                        best_params = (average_rmse, b_base, psi, p_0)
+                        best_params = (average_rmse, b_bases_batch[idx], psis_batch[idx], p_0s_batch[idx])
+            
+            b_bases = []
+            psis = []
+            p_0s = []
+
+            b_bases_batch = []
+            psis_batch = []
+            p_0s_batch = []
+
+            current_rows = 1
 
         print("FINAL RESULT: ", best_params)
 
