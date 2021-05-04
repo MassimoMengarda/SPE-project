@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import argparse
 
+# np.set_printoptions(threshold=np.inf)
+
 def main(processed_filepath, output_filepath):
     b_base_s = np.linspace(0.0012, 0.024, num=10)
     psi_s = np.linspace(515, 4886, num=15)
@@ -24,10 +26,23 @@ def main(processed_filepath, output_filepath):
 
     fields_list = ['b_base', 'psi', 'p_0']
 
-    mask = full_list[fields_list].isin(processed_list[fields_list].to_dict(orient='list')).all(axis=1)
+    mask = []
+    for field in fields_list:
+        to_process_np = processed_list[field].to_numpy()
+        to_process_reshaped = np.reshape(to_process_np, (1, to_process_np.shape[0]))
+        full_list_to_process_np = full_list[field].to_numpy()
+        mask.append(np.isclose(np.reshape(full_list_to_process_np, (full_list_to_process_np.shape[0], 1)), to_process_reshaped))
+        # field_mask = np.isclose(np.reshape(full_list_to_process_np, (full_list_to_process_np.shape[0], 1)), to_process_reshaped, rtol=1e-10, atol=1e-30).any(1)
+        # print(field_mask)
+        # mask.append(field_mask)
+    # print(.any(1).shape)
+    # print(mask)
+    mask = np.asarray(mask)
+    mask = mask.all(axis=0).any(1)
+    print("Element already elaborated: ", np.count_nonzero(mask))
     
     full_list = full_list[~mask]
-
+    
     full_list.to_csv(output_filepath, index=False)
 
 if __name__ == "__main__":
