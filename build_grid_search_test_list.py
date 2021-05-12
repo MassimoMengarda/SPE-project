@@ -38,10 +38,21 @@ def main(processed_filepath, output_filepath):
     # print(.any(1).shape)
     # print(mask)
     mask = np.asarray(mask)
-    mask = mask.all(axis=0).any(1)
+    mask = mask.all(axis=0)
+    duplicate_elements_mask = np.sum(mask, axis=1) > 1
+    print("Duplicate elements: ", np.count_nonzero(duplicate_elements_mask))
+    print("Duplicate element list:")
+    duplicate_elements_coords = np.where(duplicate_elements_mask)
+    print(duplicate_elements_coords)
+    for duplicate_elements_coord in duplicate_elements_coords[0]:
+        print("- b_base: {} psi: {}, p_0: {}".format(bbase_to_elab[duplicate_elements_coord], psi_to_elab[duplicate_elements_coord], p_0_to_elab[duplicate_elements_coord]))
+
+    mask = mask.any(1)
+    print(mask)
     print("Element already elaborated: ", np.count_nonzero(mask))
     
     full_list = full_list[~mask]
+    print(len(full_list))
     
     full_list.to_csv(output_filepath, index=False)
 
