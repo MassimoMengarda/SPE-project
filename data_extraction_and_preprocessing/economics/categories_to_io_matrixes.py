@@ -25,12 +25,11 @@ def main(info_dir, naics_code_list_path, naics_to_io_sector_path):
     
     naics_df = read_csv(naics_code_list_path, sep=";", converters={'code': str})
     naics_df["category"] = naics_df["category"].str.lower().str.strip()
-    categories_with_naics_code_df = categories_df.merge(naics_df, left_on="lower_cat_name", right_on="category", how="left", indicator=True)
+    categories_with_naics_code_df = categories_df.merge(naics_df, left_on="lower_cat_name", right_on="category", how="left")
     # Add missing element
     categories_with_naics_code_df.loc[categories_with_naics_code_df["cat_name"].str.strip() == "Malls"] = ("Malls", "malls", "531120", "Lessors of Nonresidential Buildings (except Miniwarehouses)", "both")
-
     io_sector_list = []
-    io_df = read_csv(naics_to_io_sector_path, sep=";", converters={'NAICS': str})
+    io_df = read_csv(naics_to_io_sector_path, sep=";", converters={'NAICS': str,'sector_number':int})
     for _, categories_with_naics_code_row in categories_with_naics_code_df.iterrows():
         naics_code = categories_with_naics_code_row["code"]
         is_best_fitting_set = False
