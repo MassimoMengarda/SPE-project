@@ -43,6 +43,12 @@ class Model:
         self.batch = batch
 
     def simulate(self, simulation_start_datetime, simulation_end_datetime):
+        countermeasures = ['close_food_activities_after_18.py', 'close_all_house_depot.py']
+        countermeasures_class = []
+        for i in countermeasures:
+            import 'countermeasures.' + i + ".CounterMeasure"
+            countermeasures_class.append(CounterMeasure())
+        
         cbgs_population_repeated = torch.tile(self.cbgs_population[None, :, :], (self.batch, 1, 1))
         cbg_e = torch.binomial(count=cbgs_population_repeated.float(), prob=torch.full(cbgs_population_repeated.shape, self.p_0, dtype=torch.float32, device='cuda'))
         cbg_s = cbgs_population_repeated - cbg_e
@@ -52,8 +58,7 @@ class Model:
         
         last_week_loaded = datetime.datetime(1990, 1, 1).date() # Dummy value
         simulation_time = simulation_start_datetime
-        simulation_timedelta = simulation_start_datetime - simulation_end_datetime
-
+        
         total_io_time = 0
         total_compute_time = 0
         weekly_pois_dwell = None
@@ -69,6 +74,9 @@ class Model:
                 weekly_pois_dwell = torch.reshape(weekly_pois_dwell, (weekly_pois_dwell.shape[0], 1))
                 weekly_pois_area_ratio = torch.square(weekly_pois_dwell) / self.pois_area
                 last_week_loaded = week_start_date
+
+                for countermeasure in countermeasures_class:
+                    countermeasure.week_init()
             
             time_difference_from_week_start = simulation_time - datetime.datetime.combine(week_start_date, datetime.datetime.min.time())
             week_t = time_difference_from_week_start.days * 24 + time_difference_from_week_start.seconds // 3600
@@ -78,6 +86,9 @@ class Model:
             w_ij = torch.load(os.path.join(self.ipfp_dir, week_string, "{:0>3d}.pth".format(week_t))).cuda()
             w_ij = w_ij.coalesce()
             total_io_time += time.time() - start_time
+
+            for countermeasure in countermeasures_class:
+                secotr_variation, w_ij = countermeasure.apply(w_ij)
 
             start_time = time.time()
             # Compute the new parameters
