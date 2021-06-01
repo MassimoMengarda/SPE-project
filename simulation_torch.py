@@ -1,17 +1,13 @@
 import argparse
+import datetime
 import os
-import sys
+import time
 
 import numpy as np
-import pandas as pd
-from scipy.sparse import coo
-
 import torch
-import importlib
 
-from data_extraction_and_preprocessing.utils import read_csv, read_npy, read_npz
-import datetime
-import time
+from data_extraction_and_preprocessing.utils import (read_csv, read_npy)
+
 
 def sparse_dense_vector_mul(s, d):
     i = s.indices()
