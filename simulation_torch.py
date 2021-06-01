@@ -7,6 +7,7 @@ import pandas as pd
 from scipy.sparse import coo
 
 import torch
+import importlib
 
 from data_extraction_and_preprocessing.utils import read_csv, read_npy, read_npz
 import datetime
@@ -44,11 +45,11 @@ class Model:
 
     def simulate(self, simulation_start_datetime, simulation_end_datetime):
         countermeasures = ['close_food_activities_after_18.py', 'close_all_house_depot.py']
-        countermeasures_class = []
+        countermeasures_classes = []
         for i in countermeasures:
-            import 'countermeasures.' + i + ".CounterMeasure"
-            countermeasures_class.append(CounterMeasure())
-        
+            module = __import__(i)
+            countermeasures_classes.append(getattr(module, "CounterMeasure"))
+
         cbgs_population_repeated = torch.tile(self.cbgs_population[None, :, :], (self.batch, 1, 1))
         cbg_e = torch.binomial(count=cbgs_population_repeated.float(), prob=torch.full(cbgs_population_repeated.shape, self.p_0, dtype=torch.float32, device='cuda'))
         cbg_s = cbgs_population_repeated - cbg_e
@@ -62,6 +63,11 @@ class Model:
         total_io_time = 0
         total_compute_time = 0
         weekly_pois_dwell = None
+        
+        initialized_countermeasures = []
+        for countermeasure in countermeasures_classes:
+            initialized_countermeasures.append(countermeasure())
+            
         while simulation_time <= simulation_end_datetime:
             # print(f"simulation_time {simulation_time}")
             week_num = simulation_time.weekday() #
@@ -74,9 +80,9 @@ class Model:
                 weekly_pois_dwell = torch.reshape(weekly_pois_dwell, (weekly_pois_dwell.shape[0], 1))
                 weekly_pois_area_ratio = torch.square(weekly_pois_dwell) / self.pois_area
                 last_week_loaded = week_start_date
-
-                for countermeasure in countermeasures_class:
-                    countermeasure.week_init()
+                
+                for countermeasure in initialized_countermeasures:
+                    countermeasure.init_week()
             
             time_difference_from_week_start = simulation_time - datetime.datetime.combine(week_start_date, datetime.datetime.min.time())
             week_t = time_difference_from_week_start.days * 24 + time_difference_from_week_start.seconds // 3600
@@ -87,8 +93,8 @@ class Model:
             w_ij = w_ij.coalesce()
             total_io_time += time.time() - start_time
 
-            for countermeasure in countermeasures_class:
-                secotr_variation, w_ij = countermeasure.apply(w_ij)
+            for countermeasure in initialized_countermeasures:
+                sector_variation, w_ij = countermeasure.apply(w_ij)
 
             start_time = time.time()
             # Compute the new parameters
