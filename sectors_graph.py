@@ -10,6 +10,7 @@ class Node:
         self.outputs = outputs # Edges
         self.final_input_sum = 0
         self.initial_input_sum = initial_input_sum
+        self.current_input_sum = initial_input_sum
 
 class Edge:
     def __init__(self, initial_exchange_total, intrasector):
@@ -19,29 +20,44 @@ class Edge:
         self.intrasector = intrasector
 
 class Graph:
-    def __init__(self, delta=0.0005):
+    def __init__(self, delta=0.001):
         self.nodes = {}
         self.delta = delta
-
+    
+    # Iterate over rows
     def load_data(self, io_filepath):
-        io_df = read_csv(io_filepath, sep=",", index_col="Sector")
+        io_df = read_csv(io_filepath, sep=",", index_col="Sector", converters={"Sector": lambda x : str(x).strip()})
+        # io_df = io_df.transpose()
+
         for idx, io_row in io_df.iterrows():
             idx = str(idx).strip()
             outputs = {}
 
             for output_category, value in io_row.iteritems():
+                output_category_strip = str(output_category).strip()
                 if value > sys.float_info.epsilon:
-                    outputs[str(output_category).strip()] = Edge(value, output_category == idx)
+                    outputs[output_category_strip] = Edge(value, output_category_strip == idx)
             
             self.nodes[idx] = Node(idx, outputs, io_df[idx].sum())
+            # self.nodes[idx] = Node(idx, outputs, io_df[int(idx)].sum())
+    
+    # # Iterate over columns
+    # def load_data(self, io_filepath):
+    #     io_df = read_csv(io_filepath, sep=",", index_col="Sector")
+    #     for column in io_df:
+    #         category_idx = str(column).strip()
+    #         outputs = {}
+            
+    #         for idx, io_row in io_df.iterrows():
+    #             value = io_df[column][idx]
+    #             if value > sys.float_info.epsilon:
+    #                 outputs[str(idx).strip()] = Edge(value, category_idx == idx)
+            
+    #         self.nodes[category_idx] = Node(category_idx, outputs, io_df[column].sum())
     
     def add_loss_impact(self, input_sector, input_loss): # peso effettivo in entrata
         assert(input_loss <= self.nodes[input_sector].initial_input_sum)
         elements = [(input_sector, input_loss)]
-        
-        intrasector_visited = {}
-        for sector in self.nodes:
-            intrasector_visited[sector] = False
         
         while len(elements) > 0:
             sector, loss = elements.pop(0)
@@ -50,22 +66,24 @@ class Graph:
 
             if percentage > self.delta: # if the percentage is irrelevant, do not compute the changes
                 for output_cat_id in node.outputs:
-                    if node.outputs[output_cat_id].intrasector:
-                        if intrasector_visited[output_cat_id]:
-                            continue
-                        else:
-                            intrasector_visited[output_cat_id] = True
-                    
-                    new_loss = node.outputs[output_cat_id].current_value * percentage
-                    node.outputs[output_cat_id].current_value -= new_loss
-                    elements.append((output_cat_id, new_loss))
+                    output_loss = node.outputs[output_cat_id].current_value * percentage
+                    node.outputs[output_cat_id].current_value -= output_loss
+                    # self.nodes[output_cat_id].current_input_sum -= output_loss
+                    # print(f"From {sector} to {output_cat_id} loss {output_loss}")
+                    # print(f"From {sector} to {output_cat_id} current value {node.outputs[output_cat_id].current_value}")
+
+                    elements.append((output_cat_id, output_loss))
         
+        # Compute the final input sum
         for sector in self.nodes:
             new_input = 0
             for input_sector in self.nodes:
                 if sector in self.nodes[input_sector].outputs:
                     new_input += self.nodes[input_sector].outputs[sector].current_value
             self.nodes[sector].final_input_sum = new_input
+    
+    def add_loss_to_edge(self):
+        pass
 
     def print_graph(self):
         G = nx.Graph()
@@ -82,17 +100,12 @@ class Graph:
     def print_inputs(self):
         for id, node in self.nodes.items():
             perc = (node.initial_input_sum - node.final_input_sum) / node.initial_input_sum
-            
-            print(f"Node[{id}] perc {perc * 100} %, affected ({node.outputs.keys()})")
+            print(f"Node[{id}] perc loss {perc * 100} %")#, affected ({node.outputs.keys()})")
 
 if __name__ == "__main__":
     graph = Graph()
-    graph.load_data("data\\economics\\IONom\\processed\\NOMINAL_MAKE_2019.csv")
-    graph.add_loss_impact("15", 150000)
-    graph.print_graph()
+    graph.load_data("data\\economics\\IONom\\processed\\NOMINAL_USE_2019.csv")
+    # graph.load_data("data\\tmp\\fake_nom_use2.csv")
+    graph.add_loss_impact("15", 15000)
+    # graph.print_graph()
     graph.print_inputs()
-
-
-# Sector,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,
-# 1,19744.49388959431,0.0,61.650689044453436,358.2963416823181,
-# 2,0.0,17317.747315157012,47.24475435532516,0.0,0.0,324.1257176596837
