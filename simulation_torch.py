@@ -7,6 +7,7 @@ import numpy as np
 import torch
 
 from data_extraction_and_preprocessing.utils import (read_csv, read_npy)
+from sectors_graph import Graph
 
 
 def sparse_dense_vector_mul(s, d):
@@ -20,7 +21,7 @@ def sparse_dense_vector_mul(s, d):
     return torch.sparse_coo_tensor(i, v * dv, s.size(), device=s.device).coalesce()
 
 class Model:
-    def __init__(self, cbgs_population, ipfp_dir, pois_dwell_dir, output_dir, n_pois, pois_area, b_base=0.0126, psi=2700, p_0=0.000495, p_dead=0.02, t_e=96, t_i=84, batch=1):
+    def __init__(self, cbgs_population, ipfp_dir, pois_dwell_dir, poi_categories, sector_graph_filepath, output_dir, n_pois, pois_area, b_base=0.0126, psi=2700, p_0=0.000495, p_dead=0.02, t_e=96, t_i=84, batch=1):
         self.b_base = b_base
         self.psi = psi
         self.p_0 = p_0
@@ -38,6 +39,10 @@ class Model:
         self.ipfp_dir = ipfp_dir
         self.output_dir = output_dir
         self.batch = batch
+        self.poi_categories = poi_categories
+
+        self.sectors_graph = Graph()
+        self.sectors_graph.load_data(sector_graph_filepath) 
 
     def simulate(self, simulation_start_datetime, simulation_end_datetime):
         countermeasures = ['close_food_activities_after_18.py', 'close_all_house_depot.py']
@@ -82,7 +87,6 @@ class Model:
             
             time_difference_from_week_start = simulation_time - datetime.datetime.combine(week_start_date, datetime.datetime.min.time())
             week_t = time_difference_from_week_start.days * 24 + time_difference_from_week_start.seconds // 3600
-            week_total_time = 24 * 7
 
             start_time = time.time()
             w_ij = torch.load(os.path.join(self.ipfp_dir, week_string, "{:0>3d}.pth".format(week_t))).cuda()
@@ -90,7 +94,9 @@ class Model:
             total_io_time += time.time() - start_time
 
             for countermeasure in initialized_countermeasures:
-                sector_variation, w_ij = countermeasure.apply(w_ij)
+                sectors_loss, w_ij = countermeasure.apply(simulation_time, w_ij, self.poi_categories)
+                for sector, loss in sectors_loss:
+                    self.sectors_graph.add_loss_to_edge(sector, loss)
 
             start_time = time.time()
             # Compute the new parameters
@@ -157,10 +163,11 @@ class Model:
         print(f"Saving result of week {week} at time {t} in {filepath}")
         np.save(filepath, array_to_save)
 
-def main(info_dir, ipfp_dir, dwell_dir, output_dir):
+def main(info_dir, ipfp_dir, dwell_dir, sector_graph_filepath, output_dir):
     with torch.no_grad():
         poi_index = read_csv(os.path.join(info_dir, "poi_indexes.csv"))
         n_pois = len(poi_index.index)
+        poi_categories = read_csv(os.path.join(info_dir, "poi_categories_with_io_sector.csv"))
         cbgs_population_np = read_npy(os.path.join(info_dir, "cbg_population_matrix.npy"))
         cbgs_population = torch.from_numpy(cbgs_population_np)
         cbgs_population = cbgs_population.cuda().float()
@@ -172,7 +179,7 @@ def main(info_dir, ipfp_dir, dwell_dir, output_dir):
         simulation_end = datetime.datetime(2020, 3, 2, 23) # TODO pass as arguments
         batch = 10
 
-        m = Model(cbgs_population, ipfp_dir, dwell_dir, output_dir, n_pois, pois_area, b_base=0.0126, psi=2700, p_0=0.000495, t_e=96, t_i=84, batch=batch)
+        m = Model(cbgs_population, ipfp_dir, dwell_dir, poi_categories["io_sector"].to_numpy(), sector_graph_filepath, output_dir, n_pois, pois_area, b_base=0.0126, psi=2700, p_0=0.000495, t_e=96, t_i=84, batch=batch)
         for simulation_time, week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive, _ in m.simulate(simulation_start, simulation_end):
             # TODO average batch results
             print(f"week_string {week_string}, week_t {week_t}")
@@ -183,12 +190,15 @@ if __name__ == "__main__":
     parser.add_argument("ipfp_directory", type=str, help="the directory where the ipfp matrixes are stored")
     parser.add_argument("info_directory", type=str, help="the directory where the matrixes index are stored")
     parser.add_argument("dwell_directory", type=str, help="the directory where the dwell matrixes are stored")
+    parser.add_argument("sector_graph_filepath", type=str, help="the path to the I/O tables dataset")
     parser.add_argument("output_directory", type=str, help="the directory where store the result")
+    parser.add
     args = parser.parse_args()
     ipfp_dir = args.ipfp_directory
     info_dir = args.info_directory
     dwell_dir = args.dwell_directory
+    sector_graph_filepath = args.sector_graph_filepath
     output_dir = args.output_directory
     
-    main(info_dir, ipfp_dir, dwell_dir, output_dir)
+    main(info_dir, ipfp_dir, dwell_dir, sector_graph_filepath, output_dir)
     
