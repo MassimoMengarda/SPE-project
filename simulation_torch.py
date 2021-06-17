@@ -9,17 +9,6 @@ import torch
 from data_extraction_and_preprocessing.utils import (read_csv, read_npy)
 from sectors_graph import Graph
 
-
-def sparse_dense_vector_mul(s, d):
-    i = s.indices()
-    v = s.values()
-    # get values from relevant entries of dense matrix
-    if d.shape[0] != 1:
-        dv = d[i[0,:], 0]
-    else:
-        dv = d[0, i[1,:]]
-    return torch.sparse_coo_tensor(i, v * dv, s.size(), device=s.device).coalesce()
-
 class Model:
     def __init__(self, cbgs_population, ipfp_dir, pois_dwell_dir, poi_categories, sector_graph_filepath, output_dir, n_pois, pois_area, b_base=0.0126, psi=2700, p_0=0.000495, p_dead=0.02, t_e=96, t_i=84, batch=1):
         self.b_base = b_base

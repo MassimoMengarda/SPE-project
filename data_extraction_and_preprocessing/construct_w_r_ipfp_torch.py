@@ -18,15 +18,7 @@ import time
 
 import torch
 
-def sparse_dense_vector_mul(s, d):
-    i = s.indices()
-    v = s.values()
-    # get values from relevant entries of dense matrix
-    if d.shape[0] != 1:
-        dv = d[i[0,:], 0]
-    else:
-        dv = d[0, i[1,:]]
-    return torch.sparse_coo_tensor(i, v * dv, s.size(), device=s.device).coalesce()
+from sparse_vector_utils import sparse_dense_vector_mul
 
 def coo_get_col_to_dense(coo, col_index):
     mask = coo.indices()[1, :] == col_index
