@@ -1,6 +1,7 @@
 import argparse
 import os
 
+import numpy as np
 import pandas as pd
 
 from ..utils import read_csv
@@ -26,10 +27,14 @@ def main(info_dir, naics_code_list_path, naics_to_io_sector_path):
     naics_df = read_csv(naics_code_list_path, sep=";", converters={'code': str})
     naics_df["category"] = naics_df["category"].str.lower().str.strip()
     categories_with_naics_code_df = categories_df.merge(naics_df, left_on="lower_cat_name", right_on="category", how="left")
+
     # Add missing element
-    categories_with_naics_code_df.loc[categories_with_naics_code_df["cat_name"].str.strip() == "Malls"] = ("Malls", "malls", "531120", "Lessors of Nonresidential Buildings (except Miniwarehouses)", "both")
+    mask = categories_with_naics_code_df["cat_name"].str.strip() == "Malls"
+    categories_with_naics_code_df.loc[mask] = ("Malls", "malls", "531120", "Lessors of Nonresidential Buildings (except Miniwarehouses)")
+
     io_sector_list = []
-    io_df = read_csv(naics_to_io_sector_path, sep=";", converters={'NAICS': str,'sector_number':int})
+    io_df = read_csv(naics_to_io_sector_path, sep=";", converters={'NAICS': str, 'sector_number':int})
+
     for _, categories_with_naics_code_row in categories_with_naics_code_df.iterrows():
         naics_code = categories_with_naics_code_row["code"]
         is_best_fitting_set = False
@@ -58,8 +63,11 @@ def main(info_dir, naics_code_list_path, naics_to_io_sector_path):
     poi_categories_with_io_df = poi_categories_file.merge(categories_with_io_df, left_on="sub_category", right_on="cat_name", how="left")
 
     output_filepath = os.path.join(info_dir, "poi_categories_with_io_sector.csv")
-    print("Writing file ", output_filepath)
-    poi_categories_with_io_df.to_csv(output_filepath)
+    print("Writing file", output_filepath)
+    poi_categories_with_io_df["io_sector"] = poi_categories_with_io_df["io_sector"].fillna(0)
+    poi_categories_with_io_df["io_sector"] = poi_categories_with_io_df["io_sector"].astype(int)
+
+    poi_categories_with_io_df[["matrix_idx", "io_sector"]].to_csv(output_filepath, index=False)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Construct the IO matrixes strating from POI categories and NAICS codes")
