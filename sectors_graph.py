@@ -1,21 +1,19 @@
-from typing import final
-
-from numpy.lib.function_base import percentile
-from data_extraction_and_preprocessing.utils import read_csv
-import networkx as nx
-import matplotlib.pyplot as plt
+import argparse
 import sys
+from argparse import ArgumentError
+
+import matplotlib.pyplot as plt
+import networkx as nx
+
+from data_extraction_and_preprocessing.utils import read_csv
+
 
 # TODO: inverse how the class work
 class Node:
-    def __init__(self, category_id, initial_output_sum):
+    def __init__(self, category_id):
         self.category_id = category_id
         self.inputs = {}
         self.outputs = {}
-        
-        self.final_output_sum = 0
-        self.initial_output_sum = initial_output_sum
-        self.current_output_sum = initial_output_sum
     
     def add_input_connection(self, key, value):
         if not key in self.inputs:
@@ -52,6 +50,7 @@ class Graph:
     def __init__(self, delta=0.001):
         self.nodes = {}
         self.delta = delta
+        self.io_matrix_days = 365
 
     """
     Each column sums to its respective industry output => Output
@@ -77,12 +76,13 @@ class Graph:
     #         self.nodes[clean_idx] = Node(clean_idx, inputs, io_df[clean_idx].sum())
     
     # Iterate over columns
-    def load_data(self, io_filepath):
+    def load_data(self, io_filepath, io_matrix_days=365):
+        self.io_matrix_days = io_matrix_days
         io_df = read_csv(io_filepath, sep=",", index_col="Sector")
 
         for column in io_df:
             seller_idx = str(column).strip()
-            self.nodes[seller_idx] = Node(seller_idx, io_df[column].sum() - io_df[column][206])
+            self.nodes[seller_idx] = Node(seller_idx)
 
         for column in io_df:
             buyer_idx = str(column).strip()
@@ -100,38 +100,24 @@ class Graph:
                     self.nodes[seller_idx].add_output_connection(buyer_idx, edge)
                     self.nodes[buyer_idx].add_input_connection(seller_idx, edge)
     
-    """
-    def add_loss_impact(self, input_sector, input_loss): # peso effettivo in entrata
-        assert(input_loss <= self.nodes[input_sector].initial_input_sum)
-        elements = [(input_sector, input_loss)]
-        
-        while len(elements) > 0:
-            sector, loss = elements.pop(0)
-            node = self.nodes[sector]
-            percentage = loss / node.initial_input_sum
-
-            if percentage > self.delta: # if the percentage is irrelevant, do not compute the changes
-                for output_cat_id in node.outputs:
-                    output_loss = node.outputs[output_cat_id].current_value * percentage
-                    node.outputs[output_cat_id].current_value -= output_loss
-                    # self.nodes[output_cat_id].current_input_sum -= output_loss
-                    # print(f"From {sector} to {output_cat_id} loss {output_loss}")
-                    # print(f"From {sector} to {output_cat_id} current value {node.outputs[output_cat_id].current_value}")
-
-                    elements.append((output_cat_id, output_loss))
-        
-        # Compute the final input sum
-        for sector in self.nodes:
-            new_output = 0
-            for output_sector in self.nodes:
-                if sector in self.nodes[output_sector].outputs:
-                    new_output += self.nodes[output_sector].outputs[sector].current_value
-            self.nodes[sector].final_output_sum = new_output
-    """
+    def scale_sector_graph(self, simulation_start, simulation_end):
+        simulation_duration = simulation_end - simulation_start
+        print("simulation_duration.total_seconds() // 3600: ", simulation_duration.total_seconds() // 3600)
+        print("(self.io_matrix_days * 24): ", (self.io_matrix_days * 24))
+        scale_factor = (simulation_duration.total_seconds() // 3600) / (self.io_matrix_days * 24)
+        print("scale_factor: ", scale_factor)
+        for buyer_idx in self.nodes:
+            for seller_idx in self.nodes[buyer_idx].inputs:
+                self.nodes[buyer_idx].inputs[seller_idx].initial_exchange_total *= scale_factor
+                self.nodes[buyer_idx].inputs[seller_idx].current_value *= scale_factor
+                self.nodes[buyer_idx].inputs[seller_idx].loss *= scale_factor
     
-    # add_loss_to_edge(5, 5000)
-    def add_loss_to_edge(self, supplier_sector, input_loss, buyer_sector="206"): # 206 is final demand
+    def add_loss_to_edge(self, supplier_sector, input_loss, buyer_sector=206): # 206 is final demand
+        supplier_sector = str(supplier_sector)
+        buyer_sector = str(buyer_sector)
+
         assert(input_loss <= self.nodes[supplier_sector].outputs[buyer_sector].current_value, "Input loss must be lower than the final demand")
+        
         message_list = [(supplier_sector, input_loss)]
         self.nodes[supplier_sector].outputs[buyer_sector].current_value -= input_loss
 
@@ -150,6 +136,16 @@ class Graph:
                     node.inputs[input_cat_id].current_value *= (1 - loss_percentage)
                     message_list.append((input_cat_id, loss_percentage))
     
+    def get_edge_initial_exchange_total(self, supplier_sector, buyer_sector="206"):
+        supplier_sector = str(supplier_sector)
+        buyer_sector = str(buyer_sector)
+        if buyer_sector in self.nodes:
+            if supplier_sector in self.nodes[buyer_sector].inputs:
+                return self.nodes[buyer_sector].inputs[supplier_sector].initial_exchange_total
+            
+            raise ArgumentError(supplier_sector, f"No edge between {buyer_sector} and {supplier_sector}")
+        raise ArgumentError(buyer_sector, f"No edge between {buyer_sector} and {supplier_sector}")
+
     def print_graph(self):
         G = nx.Graph()
         visual = []
@@ -192,9 +188,13 @@ class Graph:
         }
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run the simulation")
+    parser.add_argument("io_filepath", type=str, help="the filepath to the IO tables")
+
+    args = parser.parse_args()
+
     graph = Graph()
-    graph.load_data("data\\economics\\IONom\\processed\\NOMINAL_USE_2019.csv")
-    graph.add_loss_to_edge("15", 80000)
-    graph.add_loss_to_edge("15", 10000)
+    graph.load_data(args.io_filepath)
+    graph.add_loss_to_edge("168", 10000)
     graph.print_inputs()
     graph.print_graph()
