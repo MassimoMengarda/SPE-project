@@ -2,7 +2,7 @@ from .close_activity import GeneralCounterMeasure
 
 class CounterMeasure(GeneralCounterMeasure):
     def __init__(self, simulation):
-        super().__init__(simulation, poi_categories=[168], closing_hour=18)
+        super().__init__(simulation, poi_categories=[108, 159], closing_hour=0)
     
     def init_week(self):
         super().init_week()

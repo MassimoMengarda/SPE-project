@@ -12,7 +12,7 @@ from sectors_graph import Graph
 from data_extraction_and_preprocessing.sparse_vector_utils import sparse_dense_vector_mul
 
 class Model:
-    def __init__(self, cbgs_population, ipfp_dir, pois_dwell_dir, poi_categories, sector_graph_filepath, n_pois, pois_area, b_base=0.0126, psi=2700, p_0=0.000495, p_dead=0.02, t_e=96, t_i=84, batch=1):
+    def __init__(self, cbgs_population, ipfp_dir, pois_dwell_dir, poi_categories, sector_graph_filepath, counter_measure_filepath, n_pois, pois_area, b_base=0.0126, psi=2700, p_0=0.000495, p_dead=0.02, t_e=96, t_i=84, batch=1):
         self.b_base = b_base
         self.psi = psi
         self.p_0 = p_0
@@ -34,24 +34,30 @@ class Model:
         self.sectors_graph = Graph()
         self.sectors_graph.load_data(sector_graph_filepath)
 
+        self.counter_measure_filepath = counter_measure_filepath
+
     def simulate(self, simulation_start_datetime, simulation_end_datetime):
         # Rescale the economic data to the simulation time instead of whole year
         self.sectors_graph.scale_sector_graph(simulation_start_datetime, simulation_end_datetime)
 
         # Import and load all the counter-measures
-        countermeasures = ['countermeasures.close_food_activities_after_18']
+        countermeasures = []
+        with open(self.counter_measure_filepath, "r") as f:
+            countermeasures = f.readlines()
+
         countermeasures_classes = []
         for i in countermeasures:
-            module = import_module(i)
-            countermeasures_classes.append(getattr(module, "CounterMeasure"))
+            if not i.startswith("#"):
+                module = import_module("countermeasures." + i.strip())
+                countermeasures_classes.append(getattr(module, "CounterMeasure"))
 
         # Initialize the simulation (N and SEIR model)
         cbgs_population_repeated = torch.tile(self.cbgs_population[None, :, :], (self.batch, 1, 1))
-        cbg_e = torch.binomial(count=cbgs_population_repeated.float(), prob=torch.full(cbgs_population_repeated.shape, self.p_0, dtype=torch.float32, device='cuda'))
+        cbg_e = torch.binomial(count=cbgs_population_repeated.float(), prob=torch.full(cbgs_population_repeated.shape, self.p_0, dtype=torch.float32, device="cuda"))
         cbg_s = cbgs_population_repeated - cbg_e
-        cbg_i = torch.zeros((self.batch, 1, self.n_cbgs), dtype=torch.float32, device='cuda')
-        cbg_r_dead = torch.zeros((self.batch, 1, self.n_cbgs), dtype=torch.float32, device='cuda')
-        cbg_r_alive = torch.zeros((self.batch, 1, self.n_cbgs), dtype=torch.float32, device='cuda')
+        cbg_i = torch.zeros((self.batch, 1, self.n_cbgs), dtype=torch.float32, device="cuda")
+        cbg_r_dead = torch.zeros((self.batch, 1, self.n_cbgs), dtype=torch.float32, device="cuda")
+        cbg_r_alive = torch.zeros((self.batch, 1, self.n_cbgs), dtype=torch.float32, device="cuda")
         
         # Initialize the simulation time
         last_week_loaded = datetime.datetime(1990, 1, 1).date() # Dummy value
@@ -138,7 +144,7 @@ class Model:
         return self.b_base * (cbg_i / self.cbgs_population)
 
     def get_delta_pj(self, cbg_i, w_ij, weekly_pois_area_ratio):
-        delta_pj = torch.empty((self.batch, weekly_pois_area_ratio.shape[0], weekly_pois_area_ratio.shape[1]), dtype=torch.float32, device='cuda')
+        delta_pj = torch.empty((self.batch, weekly_pois_area_ratio.shape[0], weekly_pois_area_ratio.shape[1]), dtype=torch.float32, device="cuda")
         for batch in range(self.batch):
             delta_pj[batch] = torch.multiply(weekly_pois_area_ratio, torch.sparse.sum(sparse_dense_vector_mul(w_ij, cbg_i[batch] / self.cbgs_population), dim=1).to_dense()[:, None])
         return delta_pj
@@ -156,8 +162,8 @@ class Model:
         return binom_distr.sample().cuda()
 
     def get_new_r(self, cbg_i):
-        new_r = torch.binomial(count=cbg_i, prob=torch.full(cbg_i.shape, 1 / self.t_i, dtype=torch.float32, device='cuda'))
-        new_r_dead = torch.binomial(count=new_r, prob=torch.full(new_r.shape, self.p_dead, dtype=torch.float32, device='cuda'))
+        new_r = torch.binomial(count=cbg_i, prob=torch.full(cbg_i.shape, 1 / self.t_i, dtype=torch.float32, device="cuda"))
+        new_r_dead = torch.binomial(count=new_r, prob=torch.full(new_r.shape, self.p_dead, dtype=torch.float32, device="cuda"))
         return new_r_dead, new_r - new_r_dead
 
 def save_result(output_dir, week, t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive):
@@ -171,7 +177,7 @@ def save_result(output_dir, week, t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_aliv
     print(f"Saving result of week {week} at time {t} in {filepath}")
     np.save(filepath, array_to_save)
 
-def main(info_dir, ipfp_dir, dwell_dir, sector_graph_filepath, output_dir):
+def main(info_dir, ipfp_dir, dwell_dir, sector_graph_filepath, counter_measure_filepath, output_dir):
     with torch.no_grad():
         poi_index = read_csv(os.path.join(info_dir, "poi_indexes.csv"))
         n_pois = len(poi_index.index)
@@ -184,14 +190,15 @@ def main(info_dir, ipfp_dir, dwell_dir, sector_graph_filepath, output_dir):
         pois_area = pois_area.cuda()
         
         simulation_start = datetime.datetime(2020, 3, 2, 0) # TODO pass as arguments
-        simulation_end = datetime.datetime(2020, 3, 2, 23) # TODO pass as arguments
+        simulation_end = datetime.datetime(2020, 3, 6, 23) # TODO pass as arguments
         batch = 10 # TODO pass as arguments
 
-        m = Model(cbgs_population, ipfp_dir, dwell_dir, torch.from_numpy(poi_categories["io_sector"].to_numpy()).cuda(), sector_graph_filepath, n_pois, pois_area, b_base=0.0126, psi=2700, p_0=0.000495, t_e=96, t_i=84, batch=batch)
+        m = Model(cbgs_population, ipfp_dir, dwell_dir, torch.from_numpy(poi_categories["io_sector"].to_numpy()).cuda(), sector_graph_filepath, counter_measure_filepath, n_pois, pois_area, b_base=0.0126, psi=2700, p_0=0.000495, t_e=96, t_i=84, batch=batch)
         for simulation_time, week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive, _ in m.simulate(simulation_start, simulation_end):
             print(f"week_string {week_string}, week_t {week_t}")
             save_result(output_dir, week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive)
         
+        m.sectors_graph.save_sectors_graph(os.path.join(output_dir, "sector_graph.npy"))
         m.sectors_graph.print_inputs()
 
 if __name__ == "__main__":
@@ -200,6 +207,7 @@ if __name__ == "__main__":
     parser.add_argument("info_directory", type=str, help="the directory where the matrixes index are stored")
     parser.add_argument("dwell_directory", type=str, help="the directory where the dwell matrixes are stored")
     parser.add_argument("sector_graph_filepath", type=str, help="the path to the I/O tables dataset")
+    parser.add_argument("counter_measure_filepath", type=str, help="the path to the counter-measures list")
     parser.add_argument("output_directory", type=str, help="the directory where store the result")
 
     args = parser.parse_args()
@@ -207,7 +215,8 @@ if __name__ == "__main__":
     info_dir = args.info_directory
     dwell_dir = args.dwell_directory
     sector_graph_filepath = args.sector_graph_filepath
+    counter_measure_filepath = args.counter_measure_filepath
     output_dir = args.output_directory
     
-    main(info_dir, ipfp_dir, dwell_dir, sector_graph_filepath, output_dir)
+    main(info_dir, ipfp_dir, dwell_dir, sector_graph_filepath, counter_measure_filepath, output_dir)
     
