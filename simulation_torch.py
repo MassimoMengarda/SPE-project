@@ -198,7 +198,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the simulation")
     parser.add_argument("ipfp_directory", type=str, help="the directory where the ipfp matrixes are stored")
     parser.add_argument("info_directory", type=str, help="the directory where the matrixes index are stored")
-    parser.add_argument("dwell_directory", type=str, help="the directory where the dwell matrixes are stored")
+    parser.add_argument("delta_pj_directory", type=str, help="the directory where the dwell matrixes are stored")
     parser.add_argument("sector_graph_filepath", type=str, help="the path to the I/O tables dataset")
     parser.add_argument("output_directory", type=str, help="the directory where store the result")
 

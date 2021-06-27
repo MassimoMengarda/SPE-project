@@ -21,7 +21,7 @@ def get_dates_from_input_dir(input_dir, extension=".csv"):
                 filename_date = datetime.strptime(filename[:len("2019-01-08")], "%Y-%m-%d")
                 new_filename = filename_date.strftime("%Y-%m-%d") + extension
                 result.append((new_filename, os.path.join(input_dir, filename)))
-            except ValueError as err:
+            except ValueError:
                 print(f"{filename} will be skipped - Wrong name format")
 
     if len(result) == 0:

@@ -7,7 +7,7 @@ import pandas as pd
 from ..utils import get_dates_from_input_dir, read_csv
 
 def main(input_dir, zip_codes_filepath, output_filename):
-    paths = get_dates_from_input_dir(input_dir)
+    paths = [os.path.join(input_dir, filename) for filename in os.listdir(input_dir)]
     dfs = [read_csv(path, converters={"postal_code": str}) for path in paths]
     zip_codes = read_csv(zip_codes_filepath, converters={"zip_code": str})
 

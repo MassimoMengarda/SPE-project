@@ -1,19 +1,18 @@
 import argparse
 import os
-import sys
 
 import numpy as np
 import pandas as pd
 
 from utils import get_dates_from_input_dir, JSONParser, read_csv
 
-def main(input_dir, output_directory):
-    pattern_files = get_dates_from_input_dir(input_dir)
+def main(input_directory, output_directory):
+    pattern_files = get_dates_from_input_dir(input_directory)
     os.makedirs(output_directory, exist_ok=True)
 
     is_safe_graph_place_ids_set = False
     cbgs = []
-    for pattern_file in pattern_files:
+    for _, pattern_file in pattern_files:
         df = read_csv(pattern_file, converters={"visitor_home_cbgs": JSONParser})
         
         if is_safe_graph_place_ids_set:
@@ -22,7 +21,7 @@ def main(input_dir, output_directory):
             safe_graph_place_ids = df["safegraph_place_id"]
             is_safe_graph_place_ids_set = True
         
-        for i, row in df.iterrows():
+        for _, row in df.iterrows():
             cbgs.extend(row["visitor_home_cbgs"].keys())
     
     pois_idx = pd.unique(safe_graph_place_ids)
@@ -46,7 +45,7 @@ if __name__ == "__main__":
     parser.add_argument("input_directory", type=str, help="the directory where the weekly patterns are stored")
     parser.add_argument("output_directory", type=str, help="the directory where store the index result")
     args = parser.parse_args()
-    input_dir = args.input_directory
+    input_directory = args.input_directory
     output_directory = args.output_directory
 
-    main(input_dir, output_directory)
+    main(input_directory, output_directory)

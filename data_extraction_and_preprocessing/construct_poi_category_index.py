@@ -1,13 +1,11 @@
 import argparse
 import os
-import sys
 
-import numpy as np
 import pandas as pd
 
-from utils import get_dates_from_input_dir, read_csv
+from utils import read_csv
 
-def main(core_poi_filepath, info_dir):
+def main(info_dir, core_poi_filepath):
     matrix_poi_df = read_csv(os.path.join(info_dir, "poi_indexes.csv"))
     core_poi_file = read_csv(core_poi_filepath)
 
@@ -21,9 +19,9 @@ def main(core_poi_filepath, info_dir):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Construct the poi category matrix")
     parser.add_argument("info_directory", type=str, help="the directory where store the resulted index")
-    parser.add_argument("input_corepoi", type=str, help="the path to the core-poi file")
+    parser.add_argument("core_poi_filepath", type=str, help="the path to the core-poi file")
     args = parser.parse_args()
     info_dir = args.info_directory
-    core_poi_filepath = args.input_corepoi
+    core_poi_filepath = args.core_poi_filepath
 
     main(info_dir, core_poi_filepath)

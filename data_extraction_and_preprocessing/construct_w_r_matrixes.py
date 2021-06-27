@@ -1,6 +1,5 @@
 import argparse
 import os
-import sys
 
 import numpy as np
 import pandas as pd
@@ -20,7 +19,7 @@ def main(input_dir, info_dir, output_dir):
     is_aggregate_sum_w_set = False
     aggregate_sum_w = None
     
-    for filename, pattern_file in pattern_files:
+    for _, pattern_file in pattern_files:
         df = read_csv(pattern_file, converters={"postal_code": str, "visitor_home_cbgs": JSONParser})
         
         print("Computing ratio")

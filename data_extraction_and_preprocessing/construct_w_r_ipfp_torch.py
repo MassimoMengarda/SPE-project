@@ -2,23 +2,15 @@
 import argparse
 import os
 import sys
+import time
 from datetime import datetime
 
 import numpy as np
-import pandas as pd
-from scipy.sparse import coo_matrix, find, save_npz
-
-from utils import JSONParser, get_dates_from_input_dir, read_csv, read_npy, read_npz
-from utils_torch import coo_to_tensor_torch
-
-from joblib import Parallel, delayed
-
-import joblib
-import time
-
 import torch
 
 from sparse_vector_utils import sparse_dense_vector_mul
+from utils import get_dates_from_input_dir, read_npy, read_npz
+from utils_torch import coo_to_tensor_torch
 
 def coo_get_col_to_dense(coo, col_index):
     mask = coo.indices()[1, :] == col_index
