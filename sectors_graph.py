@@ -4,6 +4,7 @@ from argparse import ArgumentError
 
 import matplotlib.pyplot as plt
 import networkx as nx
+import numpy as np
 
 from data_extraction_and_preprocessing.utils import read_csv
 
@@ -126,7 +127,7 @@ class Graph:
             node = self.nodes[message_supplier_sector]
             
             output_sum = node.get_current_output_sum()
-            loss_percentage = message_input_loss / output_sum
+            loss_percentage = message_input_loss / output_sum if output_sum != 0 else 0
             
             assert(loss_percentage <= 1, "Percentage greater than 1")
             assert(loss_percentage >= 0, "Percentage smaller than 0")
@@ -157,6 +158,16 @@ class Graph:
         G.add_edges_from(visual)
         nx.draw_networkx(G)
         plt.show()
+    
+    def save_sectors_graph(self, filepath):
+        graph_to_save = np.zeros((3, len(self.nodes)), dtype=np.int64)
+        node_idx = 0
+        for node_id, node in self.nodes.items():
+            graph_to_save[node_idx, 0] = node_id
+            graph_to_save[node_idx, 1] = node.get_initial_output_sum()
+            graph_to_save[node_idx, 2] = node.get_current_output_sum()
+            node_idx += 1
+        np.save(filepath, graph_to_save)
 
     def print_inputs(self):
         for id, node in self.nodes.items():
