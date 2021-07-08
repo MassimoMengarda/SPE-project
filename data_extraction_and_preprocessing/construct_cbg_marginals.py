@@ -4,7 +4,6 @@ import sys
 
 import numpy as np
 import pandas as pd
-from scipy.sparse import coo_matrix, save_npz
 
 from utils import get_dates_from_input_dir, read_npy, read_npz
 

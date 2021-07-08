@@ -39,7 +39,7 @@ def main(simulation_parameters_filepath, info_dir, ipfp_dir, dwell_dir, cases_fi
         with open(output_filepath, "a") as f_handle:
             f_handle.write("b_base;psi;p_0;rmse\n")
 
-    parameters_df = pd.read_csv(simulation_parameters_filepath)
+    parameters_df = read_csv(simulation_parameters_filepath)
 
     for i, line in parameters_df.iterrows():
         b_base = line["b_base"]

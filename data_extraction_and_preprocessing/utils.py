@@ -32,11 +32,11 @@ def get_dates_from_input_dir(input_dir, extension=".csv"):
 def JSONParser(data):
     return json.loads(data)
 
-def read_csv(filepath, converters=None):
+def read_csv(filepath, converters=None, sep=",", index_col=None):
     if not os.path.isfile(filepath):
         sys.exit(f"{filepath} is not a valid CSV file")
     print("Reading CSV file", filepath)
-    return pd.read_csv(filepath, converters=converters)
+    return pd.read_csv(filepath, converters=converters, sep=sep, index_col=index_col)
 
 def read_npy(filepath):
     if not os.path.isfile(filepath):
