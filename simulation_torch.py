@@ -222,10 +222,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
     ipfp_dir = args.ipfp_directory
     info_dir = args.info_directory
-    dwell_dir = args.dwell_directory
+    delta_pj_dir = args.delta_pj_directory
     sector_graph_filepath = args.sector_graph_filepath
     counter_measure_filepath = args.counter_measure_filepath
     output_dir = args.output_directory
     
-    main(info_dir, ipfp_dir, dwell_dir, sector_graph_filepath, counter_measure_filepath, output_dir)
+    main(info_dir, ipfp_dir, delta_pj_dir, sector_graph_filepath, counter_measure_filepath, output_dir)
     
