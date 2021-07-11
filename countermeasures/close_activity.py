@@ -18,7 +18,7 @@ class GeneralCounterMeasure:
         mask = torch.zeros_like(self.simulation.poi_categories, dtype=torch.bool, device='cuda')
         for poi_category in self.poi_categories:
             mask = torch.logical_or(mask, self.simulation.poi_categories == poi_category)
-        people_inside_poi = torch.sparse.sum(sparse_dense_vector_mul(original_hour_movement_table, self.simulation.cbgs_population), dim=1).to_dense()
+        people_inside_poi = torch.sparse.sum(sparse_dense_vector_mul(original_hour_movement_table, self.simulation.cbgs_population[0]), dim=1).to_dense()
         people_inside_activity_in_hour = torch.sum(people_inside_poi[mask]).item()
         self.total_people_inside_without_changes += people_inside_activity_in_hour
         sectors_loss = []

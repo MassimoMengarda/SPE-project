@@ -193,13 +193,13 @@ def main(info_dir, ipfp_dir, dwell_dir, sector_graph_filepath, counter_measure_f
         pois_area = torch.from_numpy(pois_area_np)
         pois_area = pois_area.cuda()
         
-        simulation_start = datetime.datetime(2020, 3, 2, 0) # TODO pass as arguments
-        simulation_end = datetime.datetime(2020, 3, 6, 23) # TODO pass as arguments
+        simulation_start = datetime.datetime(2019, 1, 7, 0) # TODO pass as arguments
+        simulation_end = datetime.datetime(2019, 3, 31, 23) # TODO pass as arguments
         batch = 10 # TODO pass as arguments
 
-        b_bases = torch.full((batch,), 0.0126, device='cuda')
-        psis = torch.full((batch,), 2700, device='cuda')
-        p_0s = torch.full((batch,), 0.000495, device='cuda')
+        b_bases = torch.full((batch,), 0.024, device='cuda')
+        psis = torch.full((batch,), 515, device='cuda')
+        p_0s = torch.full((batch,), 0.024000, device='cuda')
 
         m = Model(cbgs_population, ipfp_dir, dwell_dir, torch.from_numpy(poi_categories["io_sector"].to_numpy()).cuda(), sector_graph_filepath, counter_measure_filepath, n_pois, pois_area, b_bases=b_bases, psis=psis, p_0s=p_0s, t_e=96, t_i=84, batch=batch)
         
