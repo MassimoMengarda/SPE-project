@@ -3,7 +3,6 @@ import datetime
 import os
 import time
 from importlib import import_module
-import sys
 
 import numpy as np
 import torch
@@ -13,10 +12,10 @@ from sectors_graph import Graph
 from data_extraction_and_preprocessing.sparse_vector_utils import sparse_dense_vector_mul
 
 class Model:
-    def __init__(self, cbgs_population, ipfp_dir, pois_dwell_dir, poi_categories, sector_graph_filepath, counter_measure_filepath, n_pois, pois_area, b_bases=[0.0126], psis=[2700], p_0s=[0.000495], p_dead=0.02, t_e=96, t_i=84, batch=1):
-        self.b_bases = b_bases
-        self.psis = psis
-        self.p_0s = p_0s
+    def __init__(self, cbgs_population, ipfp_dir, pois_dwell_dir, poi_categories, sector_graph_filepath, counter_measure_filepath, n_pois, pois_area, b_base=0.0126, psi=2700, p_0=0.000495, p_dead=0.02, t_e=96, t_i=84, batch=1):
+        self.b_base = b_base
+        self.psi = psi
+        self.p_0 = p_0
         self.p_dead = p_dead
         self.t_e = t_e
         self.t_i = t_i
@@ -51,14 +50,10 @@ class Model:
             if not i.startswith("#"):
                 module = import_module("countermeasures." + i.strip())
                 countermeasures_classes.append(getattr(module, "CounterMeasure"))
-        
+
         # Initialize the simulation (N and SEIR model)
         cbgs_population_repeated = torch.tile(self.cbgs_population[None, :, :], (self.batch, 1, 1))
-
-        probs_cbg_e = torch.tile(self.p_0s[:, None, None], (1, cbgs_population_repeated.shape[1], cbgs_population_repeated.shape[2])) # , dtype=torch.float32, device="cuda"
-
-        cbg_e = torch.binomial(count=cbgs_population_repeated.float(), prob=probs_cbg_e)
-        
+        cbg_e = torch.binomial(count=cbgs_population_repeated.float(), prob=torch.full(cbgs_population_repeated.shape, self.p_0, dtype=torch.float32, device="cuda"))
         cbg_s = cbgs_population_repeated - cbg_e
         cbg_i = torch.zeros((self.batch, 1, self.n_cbgs), dtype=torch.float32, device="cuda")
         cbg_r_dead = torch.zeros((self.batch, 1, self.n_cbgs), dtype=torch.float32, device="cuda")
@@ -146,19 +141,19 @@ class Model:
         print("Compute time: {}, IO Time: {}".format(total_compute_time, total_io_time))
 
     def get_delta_ci(self, cbg_i):
-        return self.b_bases[:, None, None] * torch.div(cbg_i, self.cbgs_population)
+        return self.b_base * (cbg_i / self.cbgs_population)
 
     def get_delta_pj(self, cbg_i, w_ij, weekly_pois_area_ratio):
         delta_pj = torch.empty((self.batch, weekly_pois_area_ratio.shape[0], weekly_pois_area_ratio.shape[1]), dtype=torch.float32, device="cuda")
         for batch in range(self.batch):
-            delta_pj[batch] = torch.multiply(weekly_pois_area_ratio, torch.sparse.sum(sparse_dense_vector_mul(w_ij, cbg_i[batch] / self.cbgs_population[0]), dim=1).to_dense()[:, None])
+            delta_pj[batch] = torch.multiply(weekly_pois_area_ratio, torch.sparse.sum(sparse_dense_vector_mul(w_ij, cbg_i[batch] / self.cbgs_population), dim=1).to_dense()[:, None])
         return delta_pj
 
     def get_new_e(self, cbg_s, delta_pj, delta_ci, w_ij):
         poisson_args = torch.empty_like(cbg_s)
         for batch in range(self.batch):
             poisson_args[batch] = torch.multiply((cbg_s[batch] / self.cbgs_population), torch.sparse.sum(sparse_dense_vector_mul(w_ij, delta_pj[batch]), dim=0).to_dense())
-        poisson = torch.poisson(self.psis[:, None, None] * poisson_args)
+        poisson = torch.poisson(self.psi * poisson_args)
         binom = torch.binomial(count=cbg_s, prob=delta_ci)
         return torch.minimum(cbg_s, poisson + binom)
 
@@ -188,10 +183,6 @@ def main(info_dir, ipfp_dir, dwell_dir, sector_graph_filepath, counter_measure_f
         n_pois = len(poi_index.index)
         poi_categories = read_csv(os.path.join(info_dir, "poi_categories_with_io_sector.csv"))
         cbgs_population_np = read_npy(os.path.join(info_dir, "cbg_population_matrix.npy"))
-        print(cbgs_population_np.shape)
-        print(np.quantile(cbgs_population_np, [.01, .10, .50, .90, .99]))
-        print(np.amax(cbgs_population_np))
-        sys.exit(1)
         cbgs_population = torch.from_numpy(cbgs_population_np)
         cbgs_population = cbgs_population.cuda().float()
         pois_area_np = read_npy(os.path.join(info_dir, "poi_area.npy"))
@@ -202,12 +193,7 @@ def main(info_dir, ipfp_dir, dwell_dir, sector_graph_filepath, counter_measure_f
         simulation_end = datetime.datetime(2019, 3, 31, 23) # TODO pass as arguments
         batch = 10 # TODO pass as arguments
 
-        b_bases = torch.full((batch,), 0.024, device='cuda')
-        psis = torch.full((batch,), 515, device='cuda')
-        p_0s = torch.full((batch,), 0.024000, device='cuda')
-
-        m = Model(cbgs_population, ipfp_dir, dwell_dir, torch.from_numpy(poi_categories["io_sector"].to_numpy()).cuda(), sector_graph_filepath, counter_measure_filepath, n_pois, pois_area, b_bases=b_bases, psis=psis, p_0s=p_0s, t_e=96, t_i=84, batch=batch)
-        
+        m = Model(cbgs_population, ipfp_dir, dwell_dir, torch.from_numpy(poi_categories["io_sector"].to_numpy()).cuda(), sector_graph_filepath, counter_measure_filepath, n_pois, pois_area, b_base=0.024, psi=515, p_0=0.024000, t_e=96, t_i=84, batch=batch)
         for simulation_time, week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive, _ in m.simulate(simulation_start, simulation_end):
             print(f"week_string {week_string}, week_t {week_t}")
             save_result(output_dir, week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive)
@@ -227,10 +213,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     ipfp_dir = args.ipfp_directory
     info_dir = args.info_directory
-    delta_pj_dir = args.delta_pj_directory
+    dwell_dir = args.delta_pj_directory
     sector_graph_filepath = args.sector_graph_filepath
     counter_measure_filepath = args.counter_measure_filepath
     output_dir = args.output_directory
     
-    main(info_dir, ipfp_dir, delta_pj_dir, sector_graph_filepath, counter_measure_filepath, output_dir)
-    
+    main(info_dir, ipfp_dir, dwell_dir, sector_graph_filepath, counter_measure_filepath, output_dir)

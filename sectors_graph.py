@@ -163,9 +163,9 @@ class Graph:
         graph_to_save = np.zeros((3, len(self.nodes)), dtype=np.int64)
         node_idx = 0
         for node_id, node in self.nodes.items():
-            graph_to_save[node_idx, 0] = node_id
-            graph_to_save[node_idx, 1] = node.get_initial_output_sum()
-            graph_to_save[node_idx, 2] = node.get_current_output_sum()
+            graph_to_save[0, node_idx] = node_id
+            graph_to_save[1, node_idx] = node.get_initial_output_sum()
+            graph_to_save[2, node_idx] = node.get_current_output_sum()
             node_idx += 1
         np.save(filepath, graph_to_save)
 
