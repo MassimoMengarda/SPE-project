@@ -20,6 +20,8 @@ def main(input_dir, zip_cbg_filename, output_dir):
     is_metro_area = df["census_block_group"].isin(zip_code_cbg_map["cbg"])
     df = df[is_metro_area]
 
+    os.makedirs(output_dir, exist_ok=True)
+
     cbg_patterns_output_filename = os.path.join(output_dir, "cbg_patterns.csv")
     df.to_csv(cbg_patterns_output_filename, index=False)
     
