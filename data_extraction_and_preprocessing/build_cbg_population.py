@@ -10,7 +10,7 @@ def main(input_filepath, info_dir):
     cbg_index_df = read_csv(os.path.join(info_dir, "cbg_indexes.csv"))
     df = read_csv(input_filepath)
 
-    reduce_df = pd.DataFrame({'cbg':df['census_block_group'], 'cbg_population': df['B01003e1']})
+    reduce_df = pd.DataFrame({'cbg':df['census_block_group'], 'cbg_population': df['TOTAL POPULATION: Total: Total population -- (Estimate)']})
     merged_df = pd.merge(cbg_index_df, reduce_df, on="cbg", how="left")
     merged_df.loc[merged_df["cbg_population"] == 0, "cbg_population"] = 1
     merged_df["cbg_population"].fillna(1, inplace=True) # fill with 1 to avoid problems with divisions
