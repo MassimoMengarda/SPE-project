@@ -1,5 +1,17 @@
 #!/bin/bash
 
+dates=(
+"2020-03-02"
+"2020-03-09"
+"2020-03-16"
+"2020-03-23"
+"2020-03-30"
+"2020-04-06"
+"2020-04-13"
+"2020-04-20"
+"2020-04-27"
+)
+
 function print_usage {
     printf "\n<PATH>/data_extraction_and_preprocessing/file_processor.sh\n"
     printf "\t--download | d\t\tDownload the weekly datasets from aws\n"
@@ -13,23 +25,10 @@ function download_weekly_files() {
     printf "Downloading weekly files\n"
     dir="data/raw/weekly"
     mkdir -p "$dir"
-    files=(
-    "2018-12-31-weekly-patterns.csv.gz"
-    "2019-01-07-weekly-patterns.csv.gz"
-    "2019-01-14-weekly-patterns.csv.gz"
-    "2019-01-21-weekly-patterns.csv.gz"
-    "2019-01-28-weekly-patterns.csv.gz"
-    "2019-02-04-weekly-patterns.csv.gz"
-    "2019-02-11-weekly-patterns.csv.gz"
-    "2019-02-18-weekly-patterns.csv.gz"
-    "2019-02-25-weekly-patterns.csv.gz"
-    "2019-03-04-weekly-patterns.csv.gz"
-    "2019-03-11-weekly-patterns.csv.gz"
-    "2019-03-18-weekly-patterns.csv.gz"
-    "2019-03-25-weekly-patterns.csv.gz"
-    )
-    for filename in "${files[@]}" ; do
-        cmd="aws s3 cp s3://sg-c19-response/weekly-patterns/v2/main-file/$filename $dir/ --profile safegraphws --endpoint https://s3.wasabisys.com"
+    file="weekly-patterns.csv.gz"
+
+    for date in "${dates[@]}" ; do
+        cmd="aws s3 cp s3://sg-c19-response/weekly-patterns/v2/main-file/$date-$file $dir/ --profile safegraphws --endpoint https://s3.wasabisys.com"
         eval "$cmd"
     done
     printf "Done\n\n";
@@ -57,23 +56,9 @@ function download_home_summary_files() {
     printf "Downloading home summary files\n"
     dir="data/extracted/home_summary"
     mkdir -p "$dir"
-    files=(
-    "2018-12-31-home-panel-summary.csv"
-    "2019-01-07-home-panel-summary.csv"
-    "2019-01-14-home-panel-summary.csv"
-    "2019-01-21-home-panel-summary.csv"
-    "2019-01-28-home-panel-summary.csv"
-    "2019-02-04-home-panel-summary.csv"
-    "2019-02-11-home-panel-summary.csv"
-    "2019-02-18-home-panel-summary.csv"
-    "2019-02-25-home-panel-summary.csv"
-    "2019-03-04-home-panel-summary.csv"
-    "2019-03-11-home-panel-summary.csv"
-    "2019-03-18-home-panel-summary.csv"
-    "2019-03-25-home-panel-summary.csv"
-    )
-    for filename in "${files[@]}" ; do
-        cmd="aws s3 cp s3://sg-c19-response/weekly-patterns/v2/home-summary-file/$filename $dir/ --profile safegraphws --endpoint https://s3.wasabisys.com"
+    file="home-panel-summary.csv"
+    for date in "${dates[@]}" ; do
+        cmd="aws s3 cp s3://sg-c19-response/weekly-patterns/v2/home-summary-file/$date-$file $dir/ --profile safegraphws --endpoint https://s3.wasabisys.com"
         eval "$cmd"
     done
     printf "Done\n\n";
@@ -84,21 +69,7 @@ function download_social_distancing_files() {
     dir="data/raw/social_distancing"
     mkdir -p "$dir"
     file="social-distancing.csv.gz"
-    dates=(
-    "2018-12-31"
-    "2019-01-07"
-    "2019-01-14"
-    "2019-01-21"
-    "2019-01-28"
-    "2019-02-04"
-    "2019-02-11"
-    "2019-02-18"
-    "2019-02-25"
-    "2019-03-04"
-    "2019-03-11"
-    "2019-03-18"
-    "2019-03-25"
-    )
+
     for date in "${dates[@]}" ; do
         for i in {0..6} ; do
             dirdate=$(date +%Y/%m/%d -d "$date +$i days")

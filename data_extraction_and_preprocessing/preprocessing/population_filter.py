@@ -13,7 +13,7 @@ def main(input_dir, zip_cbg_filename, output_dir):
     paths = [(filename, os.path.join(input_data_dir, filename)) for filename in os.listdir(input_data_dir) if filename.endswith(".csv") and filename != "cbg_patterns.csv"]
     fields = read_csv(os.path.join(input_metadata_dir, "cbg_field_descriptions.csv"))
     df = read_csv(os.path.join(input_data_dir, "cbg_patterns.csv"), converters={"census_block_group": str})
-    zip_code_cbg_map = read_csv(zip_cbg_filename, converters={"zip_code": str, "cbg": str})
+    zip_code_cbg_map = read_csv(zip_cbg_filename, converters={"zip": str, "cbg": str})
 
     fields_mapping = pd.Series(fields["field_full_name"].values,index=fields["table_id"]).to_dict()
 

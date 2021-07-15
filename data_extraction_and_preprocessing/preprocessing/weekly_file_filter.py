@@ -8,7 +8,7 @@ from ..utils import get_dates_from_input_dir, read_csv
 
 def main(input_dir, zip_codes_filepath, output_dir):
     paths = get_dates_from_input_dir(input_dir)
-    zip_codes = read_csv(zip_codes_filepath, converters={"zip_code": str})
+    zip_codes = read_csv(zip_codes_filepath, converters={"zip": str})
     os.makedirs(output_dir, exist_ok=True)
     
     for filename, path in paths:
@@ -17,7 +17,7 @@ def main(input_dir, zip_codes_filepath, output_dir):
         print("Filtering file")
         df["postal_code"] = df["postal_code"].apply(lambda x: x.zfill(5))
 
-        is_metro_area = df["postal_code"].isin(zip_codes["zip_code"])
+        is_metro_area = df["postal_code"].isin(zip_codes["zip"])
         df_metro_area = df[is_metro_area]
 
         output_filename = os.path.join(output_dir, filename)

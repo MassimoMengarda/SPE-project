@@ -8,7 +8,7 @@ from ..utils import get_dates_from_input_dir, read_csv
 
 def main(input_dir, zip_cbg_filename, output_dir):
     paths = get_dates_from_input_dir(input_dir)
-    zip_code_cbg_map = read_csv(zip_cbg_filename, converters={"zip_code": str, "cbg": str})
+    zip_code_cbg_map = read_csv(zip_cbg_filename, converters={"zip": str, "cbg": str})
     os.makedirs(output_dir, exist_ok=True)
     
     for filename, path in paths:
