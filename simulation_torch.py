@@ -48,7 +48,7 @@ class Model:
 
         countermeasures_classes = []
         for i in countermeasures:
-            if not i.startswith("#"):
+            if not i.startswith("#") and len(i.strip()) != 0:
                 module = import_module("countermeasures." + i.strip())
                 countermeasures_classes.append(getattr(module, "CounterMeasure"))
         
@@ -188,15 +188,9 @@ def main(info_dir, ipfp_dir, dwell_dir, sector_graph_filepath, counter_measure_f
         n_pois = len(poi_index.index)
         poi_categories = read_csv(os.path.join(info_dir, "poi_categories_with_io_sector.csv"))
         cbgs_population_np = read_npy(os.path.join(info_dir, "cbg_population_matrix.npy"))
-        print(cbgs_population_np.shape)
-        print(np.quantile(cbgs_population_np, [.01, .10, .50, .90, .99]))
-        print(np.amax(cbgs_population_np))
-        sys.exit(1)
-        cbgs_population = torch.from_numpy(cbgs_population_np)
-        cbgs_population = cbgs_population.cuda().float()
+        cbgs_population = torch.from_numpy(cbgs_population_np).cuda().float()
         pois_area_np = read_npy(os.path.join(info_dir, "poi_area.npy"))
-        pois_area = torch.from_numpy(pois_area_np)
-        pois_area = pois_area.cuda()
+        pois_area = torch.from_numpy(pois_area_np).cuda()
         
         simulation_start = datetime.datetime(2019, 1, 7, 0) # TODO pass as arguments
         simulation_end = datetime.datetime(2019, 3, 31, 23) # TODO pass as arguments
