@@ -51,7 +51,7 @@ def main(simulation_parameters_filepath, info_dir, ipfp_dir, dwell_dir, sector_g
         
         parameters_df = pd.read_csv(simulation_parameters_filepath)
 
-        rows_per_simulation = 2
+        rows_per_simulation = 4
         current_rows = 1
         b_bases = []
         psis = []

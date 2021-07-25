@@ -15,50 +15,29 @@ def main(input_dir, info_dir, output_dir):
 
     poi_idx_file.rename(columns={"matrix_idx": "poi_matrix_idx"}, inplace=True)
     cbg_idx_file.rename(columns={"matrix_idx": "cbg_matrix_idx"}, inplace=True)
-    
-    is_aggregate_sum_w_set = False
-    aggregate_sum_w = None
+        
+    coo_shape = (poi_idx_file["poi_matrix_idx"].max() + 1, cbg_idx_file["cbg_matrix_idx"].max() + 1)
+
+    visitors_data = []
+    cbgs_ids = []
+    pois_ids = []
     
     for _, pattern_file in pattern_files:
         df = read_csv(pattern_file, converters={"postal_code": str, "visitor_home_cbgs": JSONParser})
         
-        print("Computing ratio")
-        sum_poi_cbg = [sum(x.values()) for x in df["visitor_home_cbgs"]]
-        
-        sum_poi_cbg = np.asarray(sum_poi_cbg)
-        ratio = df["raw_visitor_counts"] / sum_poi_cbg
-
-        data = []
-        pois = []
-        cbgs = []
-        print("Computing weights")
         for idx, poi in df.iterrows():
-            data.extend(list(poi["visitor_home_cbgs"].values()) / sum_poi_cbg[idx] * ratio[idx])
-            pois.extend([poi["safegraph_place_id"] for i in range(len(poi["visitor_home_cbgs"]))])
-            cbgs.extend(poi["visitor_home_cbgs"].keys())
-        
-        print("Computing POI indexes")
-        weights_df = pd.DataFrame(data={"data": data, "poi": pois, "cbg": cbgs})
-        result_poi_merge = pd.merge(weights_df, poi_idx_file, on="poi")
+            cbgs_ids.extend(poi["visitor_home_cbgs"].keys())
+            visitors_data.extend(poi["visitor_home_cbgs"].values())
+            pois_ids.extend([poi["safegraph_place_id"] for i in range(len(poi["visitor_home_cbgs"]))])
+    
+    df = pd.DataFrame({'cbg': cbgs_ids, 'poi': pois_ids, 'visitors': visitors_data})
+    result_poi_merge = pd.merge(df, poi_idx_file, on="poi")
+    result_merge = pd.merge(result_poi_merge, cbg_idx_file, on="cbg")
+    result_merge.drop(['cbg','poi'])
+    merged_dataframe = result_merge.groupby(['poi_matrix_idx', 'cbg_matrix_idx']).sum()
 
-        print("Computing CBG indexes")
-        result_merge = pd.merge(result_poi_merge, cbg_idx_file, on="cbg")
-
-        coo_init_value = (result_merge["data"], (result_merge["poi_matrix_idx"], result_merge["cbg_matrix_idx"]))
-        coo_shape = (poi_idx_file["poi_matrix_idx"].max() + 1, cbg_idx_file["cbg_matrix_idx"].max() + 1)
-        
-        w_r_sparse_matrix = coo_matrix(coo_init_value, shape=coo_shape)
-
-        if is_aggregate_sum_w_set:
-            aggregate_sum_w += w_r_sparse_matrix
-        else:
-            aggregate_sum_w = w_r_sparse_matrix
-            is_aggregate_sum_w_set = True
-
-        # No need to save these files
-        # output_filepath = os.path.join(output_dir, (os.path.splitext(filename)[0] + ".npz"))
-        # print("Writing file", output_filepath)
-        # save_npz(output_filepath, w_r_sparse_matrix)
+    coo_value = (merged_dataframe["data"], (merged_dataframe["poi_matrix_idx"], merged_dataframe["cbg_matrix_idx"]))
+    aggregate_sum_w = coo_matrix(coo_value, shape=coo_shape)
 
     R = len(pattern_files) # Number of weeks to be considered
     aggregate_sum_w /= R

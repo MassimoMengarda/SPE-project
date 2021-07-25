@@ -20,6 +20,8 @@ def main(processed_filepath, output_filepath):
                 bbase_to_elab.append(b_base)
                 psi_to_elab.append(psi)
                 p_0_to_elab.append(p_0)
+    
+    b_base_s_2 = np.linspace(0.0012, 0.024, num=10)
 
     full_list = pd.DataFrame(data={'b_base': bbase_to_elab, 'psi': psi_to_elab, 'p_0': p_0_to_elab})
     if processed_filepath is not None:

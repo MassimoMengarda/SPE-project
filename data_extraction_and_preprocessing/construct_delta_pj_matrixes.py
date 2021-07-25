@@ -22,6 +22,7 @@ def main(input_dir, info_dir, output_dir):
         reduced_df = pd.DataFrame(data={"poi": df["safegraph_place_id"], "median_dwell": df["median_dwell"]})
         merged_df = pd.merge(poi_idx_file, reduced_df, on="poi", how="left")
         merged_df["median_dwell"].fillna(0.0, inplace=True)
+
         is_zero = merged_df["median_dwell"] == 0.0
         merged_df["median_dwell"] = merged_df["median_dwell"] + is_zero * sys.float_info.epsilon
 

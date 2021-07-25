@@ -11,7 +11,6 @@ def main(input_directory, zip_cbg_filepath, info_directory):
     os.makedirs(info_directory, exist_ok=True)
 
     is_safe_graph_place_ids_set = False
-    cbgs = []
     for _, pattern_file in pattern_files:
         df = read_csv(pattern_file, converters={"visitor_home_cbgs": JSONParser})
         
@@ -20,9 +19,6 @@ def main(input_directory, zip_cbg_filepath, info_directory):
         else:
             safe_graph_place_ids = df["safegraph_place_id"]
             is_safe_graph_place_ids_set = True
-        
-        for _, row in df.iterrows():
-            cbgs.extend(row["visitor_home_cbgs"].keys())
     
     pois_idx = pd.unique(safe_graph_place_ids)
     matrix_positions = np.arange(0, len(pois_idx))

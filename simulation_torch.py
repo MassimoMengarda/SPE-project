@@ -15,8 +15,11 @@ from data_extraction_and_preprocessing.sparse_vector_utils import sparse_dense_v
 class Model:
     def __init__(self, cbgs_population, ipfp_dir, pois_dwell_dir, poi_categories, sector_graph_filepath, counter_measure_filepath, n_pois, pois_area, b_bases=[0.0126], psis=[2700], p_0s=[0.000495], p_dead=0.02, t_e=96, t_i=84, batch=1):
         self.b_bases = b_bases
+        # self.b_bases = self.b_bases
         self.psis = psis
+        # self.psis = self.psis
         self.p_0s = p_0s
+        # self.p_0s = self.p_0s
         self.p_dead = p_dead
         self.t_e = t_e
         self.t_i = t_i
@@ -157,14 +160,17 @@ class Model:
     def get_new_e(self, cbg_s, delta_pj, delta_ci, w_ij):
         poisson_args = torch.empty_like(cbg_s)
         for batch in range(self.batch):
-            poisson_args[batch] = torch.multiply((cbg_s[batch] / self.cbgs_population), torch.sparse.sum(sparse_dense_vector_mul(w_ij, delta_pj[batch]), dim=0).to_dense())
+            partial_sum = torch.sparse.sum(sparse_dense_vector_mul(w_ij, delta_pj[batch]), dim=0).to_dense()
+            poisson_args[batch] = torch.multiply((cbg_s[batch] / self.cbgs_population), partial_sum)
         poisson = torch.poisson(self.psis[:, None, None] * poisson_args)
         binom = torch.binomial(count=cbg_s, prob=delta_ci)
         return torch.minimum(cbg_s, poisson + binom)
 
     def get_new_i(self, cbg_e):
-        binom_distr = torch.distributions.binomial.Binomial(total_count=cbg_e, probs=(1 / self.t_e))
-        return binom_distr.sample().cuda()
+        binom_distr = torch.binomial(count=cbg_e, prob=torch.full(cbg_e.shape, 1 / self.t_e, dtype=torch.float32, device="cuda"))
+        # TODO: change this
+        # return binom_distr.sample().cuda()
+        return binom_distr
 
     def get_new_r(self, cbg_i):
         new_r = torch.binomial(count=cbg_i, prob=torch.full(cbg_i.shape, 1 / self.t_i, dtype=torch.float32, device="cuda"))
@@ -192,13 +198,18 @@ def main(info_dir, ipfp_dir, dwell_dir, sector_graph_filepath, counter_measure_f
         pois_area_np = read_npy(os.path.join(info_dir, "poi_area.npy"))
         pois_area = torch.from_numpy(pois_area_np).cuda()
         
-        simulation_start = datetime.datetime(2019, 1, 7, 0) # TODO pass as arguments
-        simulation_end = datetime.datetime(2019, 3, 31, 23) # TODO pass as arguments
+        simulation_start = datetime.datetime(2020, 3, 2, 0)
+        # simulation_end = datetime.datetime(2020, 3, 2, 23)
+        simulation_end = datetime.datetime(2020, 5, 3, 23)
+        
+        # simulation_start = datetime.datetime(2019, 1, 7, 0) # TODO pass as arguments
+        # simulation_end = datetime.datetime(2019, 3, 31, 23) # TODO pass as arguments
         batch = 10 # TODO pass as arguments
 
-        b_bases = torch.full((batch,), 0.024, device='cuda')
-        psis = torch.full((batch,), 515, device='cuda')
-        p_0s = torch.full((batch,), 0.024000, device='cuda')
+        b_bases = torch.full((batch,), 0.001, device='cuda') # expected 0.001
+        psis = torch.full((batch,), 2.5, device='cuda') # 2700
+        
+        p_0s = torch.full((batch,), 0.0001, device='cuda') # 0.0001
 
         m = Model(cbgs_population, ipfp_dir, dwell_dir, torch.from_numpy(poi_categories["io_sector"].to_numpy()).cuda(), sector_graph_filepath, counter_measure_filepath, n_pois, pois_area, b_bases=b_bases, psis=psis, p_0s=p_0s, t_e=96, t_i=84, batch=batch)
         
