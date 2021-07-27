@@ -88,7 +88,7 @@ def main(simulation_parameters_filepath, info_dir, ipfp_dir, dwell_dir, sector_g
 
             days_of_simulation = 0
             previous_day_cumulative_cases = 0
-            for simulation_time, week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive, cbg_new_i in m.simulate(simulation_start, simulation_end):
+            for simulation_time, week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive, cbg_new_i, diff_visit_countermeasures in m.simulate(simulation_start, simulation_end):
                 day_new_cases.pop(0)
                 # print(cbg_new_i.shape)
                 # print(torch.sum(cbg_new_i, axis=2).shape)
