@@ -54,16 +54,19 @@ def main(nyt_cases_file, no_countermeasure_dir, output_dir):
         print(f"Done {filename}")
     
     fig, ax = plt.subplots(figsize=(10, 6))
+    # fig.subplots_adjust(right=0.77)
     ticker = matplotlib.ticker.EngFormatter(unit='')
 
     ax.set_title("Cumulative cases count (2020)")
     simulated_cases_np = np.asarray(simulated_cases)
     ax.plot(date_time, simulated_cases_np, label='Simulated')
-    ax.plot(date_time, np.asarray(total_cases), label="Total")
+    ax.plot(date_time, np.asarray(total_cases), label="Real (NYT)")
     ax.fill_between(date_time, simulated_cases_np - np.asarray(ci), simulated_cases_np + np.asarray(ci), color='b', alpha=.1)
+    ax.collections[0].set_label('Confidence interval (95%)')
     ax.yaxis.set_major_formatter(ticker)
+    # ax.legend(frameon=False, bbox_to_anchor=(1.02, 1), loc='upper left')
     ax.legend(frameon=False)
-    ax.set_ylabel('People')
+    ax.set_ylabel('Cases')
     ax.tick_params(axis='x', rotation=30)
 
     # axs[2].plot(x, np.asarray(removed_alive_countermeasure), label="Healed with")

@@ -57,6 +57,9 @@ def main(standard_results_dir, countermeasure_results_dir, countermeasure_name, 
 
             print(f"Done {i}")
         print(f"Done {filename}")
+    
+    print(removed_dead_standard[-1] - removed_dead_countermeasure[-1])
+    print(removed_alive_standard[-1] - removed_alive_countermeasure[-1])
 
     fig, axs = plt.subplots(1, 2, figsize=(10, 6))
     fig.suptitle(countermeasure_name, fontweight='bold')
@@ -97,3 +100,8 @@ if __name__ == "__main__":
     output_dir = args.output_dir
     
     main(standard_results_dir, countermeasure_results_dir, countermeasure_name, output_dir)
+
+# python3 -m data_analysis.difference_with_standard ../project-data/results_2019/simulation_result_no_countermeasure/ ../project-data/results_2019/simulation_result_food_only_takeaway/ "Only takeaway from food venues" ../dummy
+# python3 -m data_analysis.difference_with_standard ../project-data/results_2019/simulation_result_no_countermeasure/ ../project-data/results_2019/simulation_result_close_cinema/ "Closure cinemas and theaters" ../dummy
+# python3 -m data_analysis.difference_with_standard ../project-data/results_2019/simulation_result_no_countermeasure/ ../project-data/results_2019/simulation_result_close_food_activity_after_18/ "Only takeaway from food venues after 18" ../dummy
+# python3 -m data_analysis.difference_with_standard ../project-data/results_2019/simulation_result_no_countermeasure/ ../project-data/results_2019/simulation_result_close_religious_org/ "Closure of religious organizations" ../dummy

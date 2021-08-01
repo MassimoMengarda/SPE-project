@@ -43,13 +43,13 @@ def main(countermeasure_results_dirs, countermeasure_names):
     fig, ax = plt.subplots(figsize=(10, 6))
     fig.subplots_adjust(right=0.77)
     
-    ax.set_title("Difference of visits") #, fontweight='bold')
+    ax.set_title("Lost visits to points of interest") #, fontweight='bold')
     for i, label in enumerate(countermeasure_names):
         print(label_to_multiline(label))
         ax.plot(date_time, np.asarray(visits_countermeasure[i]), label=label_to_multiline(label))
     ax.yaxis.set_major_formatter(ticker)
     ax.legend(frameon=False, bbox_to_anchor=(1.02, 1), loc='upper left')
-    ax.set_ylabel('People')
+    ax.set_ylabel('Visits')
     ax.tick_params(axis='x', rotation=30)
 
     plt.show()
