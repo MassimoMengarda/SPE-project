@@ -9,5 +9,4 @@ The epidemic model is taken by the work of Chang et al. [1] and this repository 
 
 [1] Serina Chang et al. “Mobility network models of COVID-19 explain inequities and inform reopening”. In: Nature 589 (2020), pp. 82–87.DOI: 10.1038/s41586-020-2923-3
 
-
 [2] Leontief Wassily. Input-output economics. New  York: Oxford University Press, 1986. ISBN: 978-0195035278.
