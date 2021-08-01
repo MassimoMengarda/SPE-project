@@ -13,7 +13,7 @@ def main(sim_dir, info_dir, output_dir):
     weeks = os.listdir(sim_dir)
     print(weeks)
     weeks_hour = 24 * 7
-
+    
     cbgs_population = read_npy(os.path.join(info_dir, "cbg_population_matrix.npy"))
     # cbgs_population = np.reshape(cbgs_population, (1, cbgs_population.shape[0]))
 

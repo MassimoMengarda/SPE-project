@@ -106,11 +106,15 @@ class Model:
             w_ij = w_ij.coalesce()
             total_io_time += time.time() - start_time
 
+            people_inside_activity = torch.sparse.sum(w_ij, dim=0).to_dense()
+
             # Apply all the counter-measures previously defined
             for countermeasure in initialized_countermeasures:
                 w_ij, sectors_loss = countermeasure.apply(simulation_time, w_ij)
                 for sector, loss in sectors_loss:
                     self.sectors_graph.add_loss_to_edge(sector, loss)
+            
+            difference_visit_countermeasure = people_inside_activity - torch.sparse.sum(w_ij, dim=0).to_dense() # 14000 * 1
 
             start_time = time.time()
             # Compute the new parameters (SEIR model)
@@ -131,7 +135,7 @@ class Model:
             total_compute_time += time.time() - start_time
 
             # Yield the results hour by hour
-            yield simulation_time, week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive, cbg_new_i
+            yield simulation_time, week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive, cbg_new_i, difference_visit_countermeasure
 
             # Kill the simulation if there are no new cases
             if not torch.any(cbg_e + cbg_i):
@@ -154,7 +158,7 @@ class Model:
     def get_delta_pj(self, cbg_i, w_ij, weekly_pois_area_ratio):
         delta_pj = torch.empty((self.batch, weekly_pois_area_ratio.shape[0], weekly_pois_area_ratio.shape[1]), dtype=torch.float32, device="cuda")
         for batch in range(self.batch):
-            delta_pj[batch] = torch.multiply(weekly_pois_area_ratio, torch.sparse.sum(sparse_dense_vector_mul(w_ij, cbg_i[batch] / self.cbgs_population[0]), dim=1).to_dense()[:, None])
+            delta_pj[batch] = torch.multiply(self.psis[batch], torch.multiply(weekly_pois_area_ratio, torch.sparse.sum(sparse_dense_vector_mul(w_ij, cbg_i[batch] / self.cbgs_population[0]), dim=1).to_dense()[:, None]))
         return delta_pj
 
     def get_new_e(self, cbg_s, delta_pj, delta_ci, w_ij):
@@ -162,14 +166,12 @@ class Model:
         for batch in range(self.batch):
             partial_sum = torch.sparse.sum(sparse_dense_vector_mul(w_ij, delta_pj[batch]), dim=0).to_dense()
             poisson_args[batch] = torch.multiply((cbg_s[batch] / self.cbgs_population), partial_sum)
-        poisson = torch.poisson(self.psis[:, None, None] * poisson_args)
-        binom = torch.binomial(count=cbg_s, prob=delta_ci)
-        return torch.minimum(cbg_s, poisson + binom)
+        poisson = torch.poisson(poisson_args)
+        binom = torch.binomial(count=(cbg_s - poisson), prob=delta_ci)
+        return poisson + binom
 
     def get_new_i(self, cbg_e):
         binom_distr = torch.binomial(count=cbg_e, prob=torch.full(cbg_e.shape, 1 / self.t_e, dtype=torch.float32, device="cuda"))
-        # TODO: change this
-        # return binom_distr.sample().cuda()
         return binom_distr
 
     def get_new_r(self, cbg_i):
@@ -177,16 +179,23 @@ class Model:
         new_r_dead = torch.binomial(count=new_r, prob=torch.full(new_r.shape, self.p_dead, dtype=torch.float32, device="cuda"))
         return new_r_dead, new_r - new_r_dead
 
-def save_result(output_dir, week, t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive):
+def save_result(output_dir, week, t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive, difference_visit_countermeasure):
     array_to_save = np.asarray([cbg_s.cpu().numpy(), cbg_e.cpu().numpy(), cbg_i.cpu().numpy(), cbg_r_dead.cpu().numpy(), cbg_r_alive.cpu().numpy()])
 
     dir_path = os.path.join(output_dir, week)
     os.makedirs(dir_path, exist_ok=True)
+    
     filename = "{:0>3d}.npy".format(t)
     filepath = os.path.join(dir_path, filename)
 
+    visit_filename = "visit_diff_{:0>3d}.npy".format(t)
+    visit_filepath = os.path.join(dir_path, visit_filename)
+
     print(f"Saving result of week {week} at time {t} in {filepath}")
     np.save(filepath, array_to_save)
+    np.save(visit_filepath, difference_visit_countermeasure.cpu().numpy())
+
+    
 
 def main(info_dir, ipfp_dir, dwell_dir, sector_graph_filepath, counter_measure_filepath, output_dir):
     with torch.no_grad():
@@ -197,25 +206,28 @@ def main(info_dir, ipfp_dir, dwell_dir, sector_graph_filepath, counter_measure_f
         cbgs_population = torch.from_numpy(cbgs_population_np).cuda().float()
         pois_area_np = read_npy(os.path.join(info_dir, "poi_area.npy"))
         pois_area = torch.from_numpy(pois_area_np).cuda()
-        
+
+        # New dataset
         simulation_start = datetime.datetime(2020, 3, 2, 0)
-        # simulation_end = datetime.datetime(2020, 3, 2, 23)
         simulation_end = datetime.datetime(2020, 5, 3, 23)
+        # Old dataset
+        # simulation_end = datetime.datetime(2020, 3, 2, 23)
         
-        # simulation_start = datetime.datetime(2019, 1, 7, 0) # TODO pass as arguments
-        # simulation_end = datetime.datetime(2019, 3, 31, 23) # TODO pass as arguments
+        # 2019 Dataset
+        # simulation_start = datetime.datetime(2019, 1, 7, 0)
+        # simulation_end = datetime.datetime(2019, 3, 31, 23)
         batch = 10 # TODO pass as arguments
 
         b_bases = torch.full((batch,), 0.001, device='cuda') # expected 0.001
-        psis = torch.full((batch,), 2.5, device='cuda') # 2700
+        psis = torch.full((batch,), 6.0, device='cuda') # 2700
         
         p_0s = torch.full((batch,), 0.0001, device='cuda') # 0.0001
 
         m = Model(cbgs_population, ipfp_dir, dwell_dir, torch.from_numpy(poi_categories["io_sector"].to_numpy()).cuda(), sector_graph_filepath, counter_measure_filepath, n_pois, pois_area, b_bases=b_bases, psis=psis, p_0s=p_0s, t_e=96, t_i=84, batch=batch)
         
-        for simulation_time, week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive, _ in m.simulate(simulation_start, simulation_end):
+        for simulation_time, week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive, _, difference_visit_countermeasure in m.simulate(simulation_start, simulation_end):
             print(f"week_string {week_string}, week_t {week_t}")
-            save_result(output_dir, week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive)
+            save_result(output_dir, week_string, week_t, cbg_s, cbg_e, cbg_i, cbg_r_dead, cbg_r_alive, difference_visit_countermeasure)
         
         m.sectors_graph.save_sectors_graph(os.path.join(output_dir, "sector_graph.npy"))
         m.sectors_graph.print_inputs()
