@@ -25,7 +25,7 @@ def main(input_dir, info_dir, output_dir):
     for _, pattern_file in pattern_files:
         df = read_csv(pattern_file, converters={"postal_code": str, "visitor_home_cbgs": JSONParser})
         
-        for idx, poi in df.iterrows():
+        for _, poi in df.iterrows():
             cbgs_ids.extend(poi["visitor_home_cbgs"].keys())
             visitors_data.extend(poi["visitor_home_cbgs"].values())
             pois_ids.extend([poi["safegraph_place_id"] for i in range(len(poi["visitor_home_cbgs"]))])
@@ -33,10 +33,12 @@ def main(input_dir, info_dir, output_dir):
     df = pd.DataFrame({'cbg': cbgs_ids, 'poi': pois_ids, 'visitors': visitors_data})
     result_poi_merge = pd.merge(df, poi_idx_file, on="poi")
     result_merge = pd.merge(result_poi_merge, cbg_idx_file, on="cbg")
-    result_merge.drop(['cbg','poi'])
-    merged_dataframe = result_merge.groupby(['poi_matrix_idx', 'cbg_matrix_idx']).sum()
+    result_merge.drop(columns=['cbg','poi'])
 
-    coo_value = (merged_dataframe["data"], (merged_dataframe["poi_matrix_idx"], merged_dataframe["cbg_matrix_idx"]))
+    merged_dataframe = result_merge.groupby(['poi_matrix_idx', 'cbg_matrix_idx']).sum()
+    merged_dataframe.reset_index(level=['poi_matrix_idx', 'cbg_matrix_idx'], inplace=True)
+
+    coo_value = (merged_dataframe["visitors"].to_numpy(dtype=np.float64), (merged_dataframe["poi_matrix_idx"], merged_dataframe["cbg_matrix_idx"]))
     aggregate_sum_w = coo_matrix(coo_value, shape=coo_shape)
 
     R = len(pattern_files) # Number of weeks to be considered
